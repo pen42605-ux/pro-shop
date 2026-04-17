@@ -18,7 +18,7 @@ npm start
 ```
 
 - 商城首頁：<http://127.0.0.1:3000/>
-- 會員登入：`login.html` — **LINE** 仍為前端模擬；**信箱 + 密碼** 連後端 PostgreSQL。
+- 會員登入：`index.html` — **LINE** 仍為前端模擬；**信箱 + 密碼** 連後端 PostgreSQL。
 - 註冊：`register.html`
 
 ## Railway

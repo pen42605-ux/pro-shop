@@ -943,17 +943,17 @@
   function requireApprovedCustomer() {
     try {
       if (localStorage.getItem('vip') !== 'true') {
-        location.replace('login.html');
+        location.replace('index.html');
         return false;
       }
     } catch (e) {
-      location.replace('login.html');
+      location.replace('index.html');
       return false;
     }
     bootstrapVipPortalSession();
     var ag = getAgent();
     if (!ag || !ag.user) {
-      location.replace('login.html');
+      location.replace('index.html');
       return false;
     }
     if (isUserBlocked()) {

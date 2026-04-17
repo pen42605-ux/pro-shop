@@ -7,10 +7,10 @@
       (function () {
         try {
           if (localStorage.getItem('vip') !== 'true') {
-            location.replace('login.html');
+            location.replace('index.html');
           }
         } catch (e) {
-          location.replace('login.html');
+          location.replace('index.html');
         }
       })();
     </script>
@@ -142,7 +142,7 @@
         'use strict';
 
         if (localStorage.getItem('vip') !== 'true') {
-          location.replace('login.html');
+          location.replace('index.html');
           return;
         }
 
@@ -173,7 +173,7 @@
         VIPStore.bootstrapVipPortalSession();
         var agent = VIPStore.getAgent();
         if (!agent || !agent.user) {
-          location.replace('login.html');
+          location.replace('index.html');
           return;
         }
 
@@ -185,7 +185,7 @@
 
         document.getElementById('out').addEventListener('click', function () {
           VIPStore.clearAgent();
-          location.href = 'login.html';
+          location.href = 'index.html';
         });
 
         var rec = VIPStore.getSessionUserRecord();
@@ -204,7 +204,7 @@
           });
           document.getElementById('btn-gate-out').addEventListener('click', function () {
             VIPStore.clearAgent();
-            location.href = 'login.html';
+            location.href = 'index.html';
           });
           return;
         }
@@ -221,7 +221,7 @@
           });
           document.getElementById('btn-gate-out').addEventListener('click', function () {
             VIPStore.clearAgent();
-            location.href = 'login.html';
+            location.href = 'index.html';
           });
 
           window.addEventListener('vip-storage-change', function (e) {

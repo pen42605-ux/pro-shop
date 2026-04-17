@@ -108,7 +108,7 @@
       (function () {
         var agent = VIPStore.getAgent();
         if (!agent || !agent.user) {
-          location.replace('login.html');
+          location.replace('index.html');
           return;
         }
         if (!VIPStore.requireApprovedCustomer()) return;
@@ -133,7 +133,7 @@
         VIPUX.initAgentContextBar();
         document.getElementById('out').addEventListener('click', function () {
           VIPStore.setAgent({ code: agent.code, name: agent.name });
-          location.href = 'login.html';
+          location.href = 'index.html';
         });
         var u = agent.user;
         document.getElementById('name').value = u.displayName || '';

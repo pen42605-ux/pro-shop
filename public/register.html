@@ -15,7 +15,7 @@
           <span class="logo-mark" aria-hidden="true"></span>
           <span>VIP BOUTIQUE</span>
         </a>
-        <a class="btn-outline btn-sm" href="login.html">返回登入</a>
+        <a class="btn-outline btn-sm" href="index.html">返回登入</a>
       </div>
     </header>
     <main id="main" class="page">
@@ -42,7 +42,7 @@
             <button type="submit" class="btn-gold" style="width: 100%">註冊</button>
           </form>
           <p class="vip-landing-hint" style="margin-top: 1rem; text-align: center">
-            已有帳號？<a href="login.html">前往登入</a>
+            已有帳號？<a href="index.html">前往登入</a>
           </p>
         </div>
       </div>
@@ -72,7 +72,7 @@
               });
             })
             .then(function () {
-              location.href = 'login.html';
+              location.href = 'index.html';
             })
             .catch(function (err) {
               Swal.fire({ icon: 'error', title: '註冊失敗', text: err.message || String(err) });
