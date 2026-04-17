@@ -3303,6 +3303,34 @@ body.is-agent-verified .vip-home2-feat__icon {
 }
 
 /* 口味／規格選擇彈窗 — SMOKE SHOP 風格 */
+.vip-picker-container.swal2-container {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  height: 100dvh !important;
+  min-height: 100vh !important;
+  padding: env(safe-area-inset-top, 0) env(safe-area-inset-right, 0)
+    env(safe-area-inset-bottom, 0) env(safe-area-inset-left, 0) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  overflow-y: auto !important;
+  background: rgba(0, 0, 0, 0.72) !important;
+  backdrop-filter: blur(4px) !important;
+  -webkit-backdrop-filter: blur(4px) !important;
+  z-index: 10050 !important;
+}
+.vip-picker-container .swal2-popup.vip-picker-popup {
+  position: relative !important;
+  margin: auto !important;
+  max-height: calc(100dvh - 2rem) !important;
+  overflow-y: auto !important;
+}
+
 .vip-picker-popup {
   max-width: min(94vw, 440px) !important;
   padding: 1.5rem 1.15rem 1.15rem !important;

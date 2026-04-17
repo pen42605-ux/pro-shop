@@ -306,38 +306,43 @@
           });
         }
 
-        ProductCatalog.seedFromMockIfEmpty();
-        var catalog = ProductCatalog.getActiveForShop()
-          .map(function (p) {
-            return ProductCatalog.ensureProductShape(p);
-          })
-          .filter(Boolean);
-
         var PLACE_IMG =
           'data:image/svg+xml,' +
           encodeURIComponent(
             '<svg xmlns="http://www.w3.org/2000/svg" width="360" height="240"><rect fill="%23111111" width="100%" height="100%"/><text x="50%" y="52%" fill="%23d4af37" font-size="26" font-family="sans-serif" text-anchor="middle" dy=".3em">無圖</text></svg>'
           );
 
-        var groups = {};
-        catalog.forEach(function (p) {
-          var c = p.category || '未分類';
-          if (!groups[c]) groups[c] = [];
-          groups[c].push(p);
-        });
-        var cats = Object.keys(groups).sort();
-
         var root = document.getElementById('root');
-        root.innerHTML = '';
         var staggerIdx = 0;
         var staggerStep = 0.055;
         function nextStaggerDelay() {
           return staggerIdx++ * staggerStep + 's';
         }
 
-        if (!catalog.length) {
-          root.innerHTML = '<p class="page-sub" style="padding:1rem 0">目前沒有上架商品。</p>';
-        } else {
+        function renderShop() {
+          staggerIdx = 0;
+          ProductCatalog.seedFromMockIfEmpty();
+          var catalog = ProductCatalog.getActiveForShop()
+            .map(function (p) {
+              return ProductCatalog.ensureProductShape(p);
+            })
+            .filter(Boolean);
+
+          var groups = {};
+          catalog.forEach(function (p) {
+            var c = p.category || '未分類';
+            if (!groups[c]) groups[c] = [];
+            groups[c].push(p);
+          });
+          var cats = Object.keys(groups).sort();
+
+          root.innerHTML = '';
+
+          if (!catalog.length) {
+            root.innerHTML = '<p class="page-sub" style="padding:1rem 0">目前沒有上架商品。</p>';
+            return;
+          }
+
           cats.forEach(function (cat) {
             var gridProducts = groups[cat];
             var h = document.createElement('div');
@@ -478,12 +483,42 @@
           });
         }
 
+        renderShop();
+
+        var _renderShopPending = false;
+        function scheduleRender() {
+          if (_renderShopPending) return;
+          _renderShopPending = true;
+          setTimeout(function () {
+            _renderShopPending = false;
+            try { renderShop(); } catch (_) {}
+          }, 30);
+        }
+
         window.addEventListener('vip-storage-change', function (e) {
-          if (e.detail && e.detail.key === 'cart') {
+          var k = e.detail && e.detail.key;
+          if (k === 'cart') {
+            root.querySelectorAll('article.product-card').forEach(function (art) {
+              if (typeof art._shopUpdatePrice === 'function') art._shopUpdatePrice();
+            });
+          } else if (k === 'products') {
+            scheduleRender();
+          }
+        });
+
+        window.addEventListener('storage', function (e) {
+          if (!e) return;
+          if (e.key === 'products' || e.key === null) {
+            scheduleRender();
+          } else if (e.key === 'cart') {
             root.querySelectorAll('article.product-card').forEach(function (art) {
               if (typeof art._shopUpdatePrice === 'function') art._shopUpdatePrice();
             });
           }
+        });
+
+        document.addEventListener('visibilitychange', function () {
+          if (!document.hidden) scheduleRender();
         });
 
         function triggerCartIconBounce() {
@@ -715,7 +750,7 @@
             showCloseButton: false,
             confirmButtonText: '加入購物車',
             cancelButtonText: '✕',
-            customClass: { popup: 'vip-picker-popup' },
+            customClass: { container: 'vip-picker-container', popup: 'vip-picker-popup' },
             focusConfirm: false,
             didOpen: function () {
               var container = document.getElementById('vip-picker-root');
@@ -751,6 +786,36 @@
           var card = b.closest('.product-card');
           openProductPicker(p, b, card);
         });
+
+        var _vipLastSig = '';
+        try { _vipLastSig = JSON.stringify(VIPStore.getProducts() || []); } catch (e) {}
+        var _vipReloading = false;
+        function _vipScheduleReload() {
+          if (_vipReloading) return;
+          _vipReloading = true;
+          try { if (window.Swal && Swal.isVisible && Swal.isVisible()) Swal.close(); } catch (e) {}
+          try { if (window.VIPUX && typeof VIPUX.toast === 'function') VIPUX.toast('商品已更新，重新載入中…', 'info'); } catch (e) {}
+          setTimeout(function () { location.reload(); }, 600);
+        }
+        function _vipIsSyncKey(k) {
+          if (!k) return false;
+          var s = String(k).toLowerCase();
+          return s.indexOf('product') !== -1 || s.indexOf('announce') !== -1;
+        }
+        window.addEventListener('storage', function (e) {
+          if (_vipIsSyncKey(e && e.key)) _vipScheduleReload();
+        });
+        window.addEventListener('vip-storage-change', function (e) {
+          var k = e && e.detail && e.detail.key;
+          if (_vipIsSyncKey(k)) _vipScheduleReload();
+        });
+        setInterval(function () {
+          if (_vipReloading || document.hidden) return;
+          try {
+            var cur = JSON.stringify(VIPStore.getProducts() || []);
+            if (cur !== _vipLastSig) { _vipLastSig = cur; _vipScheduleReload(); }
+          } catch (e) {}
+        }, 2500);
         }
       })();
     </script>
