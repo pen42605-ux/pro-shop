@@ -683,6 +683,9 @@
               showConfirmButton: false,
               timer: 2400,
               timerProgressBar: true,
+              heightAuto: false,
+              scrollbarPadding: false,
+              returnFocus: false,
               customClass: { popup: 'vip-swal-toast vip-swal-toast--add-cart' },
             });
             if (b) b.disabled = false;
@@ -788,6 +791,7 @@
             }
           }
 
+          var _preScrollY = window.scrollY || window.pageYOffset || 0;
           Swal.fire({
             title: '',
             html: '<div id="vip-picker-root"></div>',
@@ -798,6 +802,7 @@
             cancelButtonText: '✕',
             customClass: { container: 'vip-picker-container', popup: 'vip-picker-popup' },
             focusConfirm: false,
+            returnFocus: false,
             heightAuto: false,
             scrollbarPadding: false,
             backdrop: 'rgba(0, 0, 0, 0.72)',
@@ -807,6 +812,14 @@
             didOpen: function () {
               var container = document.getElementById('vip-picker-root');
               if (container) refresh(container);
+            },
+            didClose: function () {
+              try {
+                var cur = window.scrollY || window.pageYOffset || 0;
+                if (Math.abs(cur - _preScrollY) > 4) {
+                  window.scrollTo({ top: _preScrollY, behavior: 'instant' in window ? 'instant' : 'auto' });
+                }
+              } catch (_) {}
             },
             preConfirm: function () {
               var v = ProductCatalog.findVariation(p, selected);
