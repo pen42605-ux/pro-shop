@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>管理者 · VIP Admin</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" />
+    <link rel="stylesheet" href="css/app.css" />
+    <link rel="stylesheet" href="css/admin.css" />
+    <style>
+      .admin-form-grid {
+        display: grid;
+        gap: 0.85rem;
+      }
+      @media (min-width: 560px) {
+        .admin-form-grid--2 {
+          grid-template-columns: 1fr 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body class="admin-body">
+    <a class="skip" href="#main">主要內容</a>
+    <div class="admin-app">
+      <aside class="admin-sidebar" aria-label="後台選單">
+        <div class="admin-sidebar__brand">
+          <span class="admin-sidebar__brand-mark" aria-hidden="true">◆</span>
+          <span class="admin-sidebar__brand-text">VIP Admin</span>
+        </div>
+        <nav class="admin-sidebar__nav">
+          <a href="admin.html" data-admin-perm="dashboard"><span class="admin-sidebar__icon" aria-hidden="true">▣</span><span>儀表板</span></a>
+          <a href="admin-users.html" data-admin-perm="users"><span class="admin-sidebar__icon" aria-hidden="true">👤</span><span>用戶</span></a>
+          <a href="admin-products.html" data-admin-perm="products"><span class="admin-sidebar__icon" aria-hidden="true">🛍</span><span>商品</span></a>
+          <a href="admin-orders.html" data-admin-perm="orders"><span class="admin-sidebar__icon" aria-hidden="true">📦</span><span>訂單</span></a>
+          <a href="admin-admins.html" aria-current="page" data-super-only
+            ><span class="admin-sidebar__icon" aria-hidden="true">⚙</span><span>管理者</span></a
+          >
+        </nav>
+        <div class="admin-sidebar__foot">
+          <button type="button" class="btn-outline btn-sm" id="out">登出</button>
+        </div>
+      </aside>
+      <main class="admin-content" id="main">
+        <header class="admin-content__head">
+          <h1 class="admin-content__title">管理者與權限</h1>
+          <p class="admin-content__sub">
+            僅<strong>最上層管理者</strong>可進入此頁。可維護<strong>有效代理代碼</strong>（前台僅能使用清單內代碼驗證）；並可管理後台帳號與<strong>儀表板／用戶／商品／訂單</strong>權限。密碼存於本機（示範用）。
+          </p>
+        </header>
+
+        <div class="admin-panel" id="agents-panel">
+          <h2 class="admin-panel__title">有效代理代碼</h2>
+          <p class="page-sub" style="margin: 0 0 0.85rem; font-size: 0.82rem">
+            僅此清單內代碼可通過 <code>index.html</code> 驗證；至少保留一筆。代碼建立後不可改（可刪除後重建）。
+          </p>
+          <div class="admin-form-grid admin-form-grid--2" style="margin-top: 0.5rem">
+            <div class="field">
+              <label for="ag-code">新代理代碼</label>
+              <input type="text" id="ag-code" class="input" autocomplete="off" placeholder="例如 NORTH01" />
+            </div>
+            <div class="field">
+              <label for="ag-name">顯示名稱</label>
+              <input type="text" id="ag-name" class="input" autocomplete="off" placeholder="門市／團隊名稱" />
+            </div>
+          </div>
+          <div class="admin-actions" style="margin-top: 0.65rem">
+            <button type="button" class="btn-gold btn-sm" id="btn-ag-add">新增代理</button>
+          </div>
+          <div class="admin-table-wrap" style="margin-top: 1rem">
+            <table>
+              <thead>
+                <tr>
+                  <th>代碼</th>
+                  <th>顯示名稱</th>
+                  <th style="min-width: 140px">操作</th>
+                </tr>
+              </thead>
+              <tbody id="agents-tb"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="admin-panel">
+          <h2 class="admin-panel__title">新增一般管理者</h2>
+          <div class="admin-form-grid admin-form-grid--2" style="margin-top: 0.75rem">
+            <div class="field">
+              <label for="new-user">帳號</label>
+              <input type="text" id="new-user" class="input" autocomplete="off" placeholder="英數" />
+            </div>
+            <div class="field">
+              <label for="new-pw">密碼</label>
+              <input type="password" id="new-pw" class="input" autocomplete="new-password" />
+            </div>
+          </div>
+          <fieldset class="admin-perm-fieldset" style="margin-top: 0.75rem">
+            <legend style="font-size: 0.82rem; padding: 0 0.35rem">權限</legend>
+            <label class="admin-toggle-label" style="margin-bottom: 0.45rem">
+              <input type="checkbox" id="np-dash" class="admin-toggle-input" checked />
+              <span class="admin-toggle-ui" aria-hidden="true"></span>
+              <span>儀表板（公告）</span>
+            </label>
+            <label class="admin-toggle-label" style="margin-bottom: 0.45rem">
+              <input type="checkbox" id="np-users" class="admin-toggle-input" checked />
+              <span class="admin-toggle-ui" aria-hidden="true"></span>
+              <span>用戶</span>
+            </label>
+            <label class="admin-toggle-label" style="margin-bottom: 0.45rem">
+              <input type="checkbox" id="np-products" class="admin-toggle-input" checked />
+              <span class="admin-toggle-ui" aria-hidden="true"></span>
+              <span>商品</span>
+            </label>
+            <label class="admin-toggle-label">
+              <input type="checkbox" id="np-orders" class="admin-toggle-input" checked />
+              <span class="admin-toggle-ui" aria-hidden="true"></span>
+              <span>訂單</span>
+            </label>
+          </fieldset>
+          <div class="admin-actions" style="margin-top: 1rem">
+            <button type="button" class="btn-gold btn-sm" id="btn-add">新增帳號</button>
+          </div>
+        </div>
+
+        <div class="admin-table-wrap" style="margin-top: 1.5rem">
+          <table>
+            <thead>
+              <tr>
+                <th>帳號</th>
+                <th>角色</th>
+                <th>權限</th>
+                <th style="min-width: 220px">操作</th>
+              </tr>
+            </thead>
+            <tbody id="tb"></tbody>
+          </table>
+        </div>
+      </main>
+    </div>
+
+    <div id="edit-modal" class="admin-modal" hidden role="dialog" aria-modal="true" aria-labelledby="edit-title">
+      <div class="admin-modal__backdrop" data-em-close></div>
+      <div class="admin-modal__panel" style="max-width: 420px">
+        <button type="button" class="admin-modal__close" data-em-close aria-label="關閉">×</button>
+        <h2 id="edit-title" style="margin: 0 0 1rem; font-size: 1.1rem; color: #f5e6a8">編輯管理者</h2>
+        <input type="hidden" id="em-id" />
+        <div class="field">
+          <label for="em-user">帳號</label>
+          <input type="text" id="em-user" class="input" />
+        </div>
+        <div class="field">
+          <label for="em-pw">新密碼（留空則不變）</label>
+          <input type="password" id="em-pw" class="input" autocomplete="new-password" />
+        </div>
+        <fieldset id="em-perms" class="admin-perm-fieldset" style="margin-top: 0.5rem">
+          <legend style="font-size: 0.82rem; padding: 0 0.35rem">權限</legend>
+          <label class="admin-toggle-label" style="margin-bottom: 0.45rem">
+            <input type="checkbox" id="em-dash" class="admin-toggle-input" />
+            <span class="admin-toggle-ui" aria-hidden="true"></span>
+            <span>儀表板</span>
+          </label>
+          <label class="admin-toggle-label" style="margin-bottom: 0.45rem">
+            <input type="checkbox" id="em-users" class="admin-toggle-input" />
+            <span class="admin-toggle-ui" aria-hidden="true"></span>
+            <span>用戶</span>
+          </label>
+          <label class="admin-toggle-label" style="margin-bottom: 0.45rem">
+            <input type="checkbox" id="em-products" class="admin-toggle-input" />
+            <span class="admin-toggle-ui" aria-hidden="true"></span>
+            <span>商品</span>
+          </label>
+          <label class="admin-toggle-label">
+            <input type="checkbox" id="em-orders" class="admin-toggle-input" />
+            <span class="admin-toggle-ui" aria-hidden="true"></span>
+            <span>訂單</span>
+          </label>
+        </fieldset>
+        <div class="admin-actions" style="margin-top: 1rem">
+          <button type="button" class="btn-gold btn-sm" id="em-save">儲存</button>
+          <button type="button" class="btn-outline btn-sm" data-em-close>取消</button>
+        </div>
+      </div>
+    </div>
+
+    <script src="js/storage.js"></script>
+    <script src="js/admin-nav.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.all.min.js"></script>
+    <script>
+      (function () {
+        if (!VIPStore.isAdmin()) {
+          location.replace('admin-login.html');
+          return;
+        }
+        if (!VIPStore.isSuperAdmin()) {
+          VIPStore.goToFallbackAdminPage();
+          return;
+        }
+
+        document.getElementById('out').addEventListener('click', function () {
+          VIPStore.adminLogout();
+          location.href = 'admin-login.html';
+        });
+
+        var KEYS = VIPStore.ADMIN_PERM_KEYS;
+        var LABEL = { dashboard: '儀表板', users: '用戶', products: '商品', orders: '訂單' };
+        var tb = document.getElementById('tb');
+        var modal = document.getElementById('edit-modal');
+        var agentsTb = document.getElementById('agents-tb');
+
+        function esc(s) {
+          return String(s)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;');
+        }
+
+        function renderAgents() {
+          agentsTb.innerHTML = VIPStore.getAgentsCatalog()
+            .map(function (row) {
+              return (
+                '<tr><td>' +
+                esc(row.code) +
+                '</td><td>' +
+                esc(row.name) +
+                '</td><td><div class="admin-actions">' +
+                '<button type="button" class="btn-outline btn-sm" data-ag-act="edit-name" data-ag-code="' +
+                esc(row.code) +
+                '">改顯示名稱</button> ' +
+                '<button type="button" class="btn-outline btn-sm" data-ag-act="del" data-ag-code="' +
+                esc(row.code) +
+                '">刪除</button>' +
+                '</div></td></tr>'
+              );
+            })
+            .join('');
+        }
+
+        document.getElementById('btn-ag-add').addEventListener('click', function () {
+          var code = document.getElementById('ag-code').value;
+          var name = document.getElementById('ag-name').value;
+          var r = VIPStore.addAgentCatalogEntry({ code: code, name: name });
+          if (!r.ok) {
+            Swal.fire({ icon: 'error', title: '無法新增', text: r.error || '', confirmButtonText: '好的' });
+            return;
+          }
+          document.getElementById('ag-code').value = '';
+          document.getElementById('ag-name').value = '';
+          renderAgents();
+          Swal.fire({ icon: 'success', title: '已新增代理', timer: 900, showConfirmButton: false });
+        });
+
+        agentsTb.addEventListener('click', function (e) {
+          var btn = e.target.closest('button[data-ag-act]');
+          if (!btn) return;
+          var act = btn.getAttribute('data-ag-act');
+          var code = btn.getAttribute('data-ag-code');
+          if (!code) return;
+          if (act === 'del') {
+            Swal.fire({
+              title: '刪除此代理代碼？',
+              text: '刪除後該代碼無法通過前台驗證。',
+              icon: 'warning',
+              showCancelButton: true,
+              confirmButtonText: '刪除',
+              cancelButtonText: '取消',
+            }).then(function (res) {
+              if (!res.isConfirmed) return;
+              var dr = VIPStore.removeAgentCatalogEntry(code);
+              if (!dr.ok) Swal.fire({ icon: 'error', title: '無法刪除', text: dr.error || '' });
+              else renderAgents();
+            });
+            return;
+          }
+          if (act === 'edit-name') {
+            var cur = VIPStore.getAgentsCatalog().find(function (a) {
+              return a.code === code;
+            });
+            Swal.fire({
+              title: '編輯顯示名稱 · ' + code,
+              input: 'text',
+              inputValue: cur ? cur.name : '',
+              showCancelButton: true,
+              confirmButtonText: '儲存',
+              cancelButtonText: '取消',
+            }).then(function (res) {
+              if (!res.isConfirmed || res.value == null) return;
+              var ur = VIPStore.updateAgentCatalogEntry(code, { name: String(res.value) });
+              if (!ur.ok) Swal.fire({ icon: 'error', title: '儲存失敗', text: ur.error || '' });
+              else renderAgents();
+            });
+          }
+        });
+
+        function permSummary(acc) {
+          var p = acc.permissions || {};
+          var labels = KEYS.filter(function (k) {
+            return p[k];
+          }).map(function (k) {
+            return LABEL[k] || k;
+          });
+          if (labels.length === KEYS.length) return '全部';
+          return labels.join('、') || '（無）';
+        }
+
+        function render() {
+          var list = VIPStore.getAdminAccounts();
+          tb.innerHTML = list
+            .map(function (a) {
+              var roleLabel = a.role === 'super' ? '最上層' : '一般';
+              var btns =
+                '<button type="button" class="btn-gold btn-sm" data-act="edit" data-id="' +
+                esc(a.id) +
+                '">編輯</button>' +
+                (a.role === 'staff'
+                  ? ' <button type="button" class="btn-outline btn-sm" data-act="del" data-id="' + esc(a.id) + '">刪除</button>'
+                  : '');
+              return (
+                '<tr><td>' +
+                esc(a.username) +
+                '</td><td>' +
+                roleLabel +
+                '</td><td style="font-size:0.82rem">' +
+                esc(permSummary(a)) +
+                '</td><td><div class="admin-actions">' +
+                btns +
+                '</div></td></tr>'
+              );
+            })
+            .join('');
+        }
+
+        function collectNewPerms() {
+          return {
+            dashboard: document.getElementById('np-dash').checked,
+            users: document.getElementById('np-users').checked,
+            products: document.getElementById('np-products').checked,
+            orders: document.getElementById('np-orders').checked,
+          };
+        }
+
+        document.getElementById('btn-add').addEventListener('click', function () {
+          var u = document.getElementById('new-user').value;
+          var p = document.getElementById('new-pw').value;
+          var r = VIPStore.addAdminStaffAccount({ username: u, password: p, permissions: collectNewPerms() });
+          if (!r.ok) {
+            Swal.fire({ icon: 'error', title: '無法新增', text: r.error || '', confirmButtonText: '好的' });
+            return;
+          }
+          document.getElementById('new-user').value = '';
+          document.getElementById('new-pw').value = '';
+          render();
+          Swal.fire({ icon: 'success', title: '已新增', timer: 900, showConfirmButton: false });
+        });
+
+        tb.addEventListener('click', function (e) {
+          var btn = e.target.closest('button[data-act]');
+          if (!btn) return;
+          var id = btn.getAttribute('data-id');
+          var act = btn.getAttribute('data-act');
+          var acc = VIPStore.getAdminAccounts().find(function (x) {
+            return x.id === id;
+          });
+          if (!acc) return;
+
+          if (act === 'del') {
+            Swal.fire({
+              title: '刪除此管理者？',
+              icon: 'warning',
+              showCancelButton: true,
+              confirmButtonText: '刪除',
+              cancelButtonText: '取消',
+            }).then(function (res) {
+              if (!res.isConfirmed) return;
+              var r = VIPStore.removeAdminStaff(id);
+              if (!r.ok) Swal.fire({ icon: 'error', title: '無法刪除', text: r.error || '' });
+              else render();
+            });
+            return;
+          }
+
+          if (act === 'edit') {
+            document.getElementById('em-id').value = id;
+            document.getElementById('em-user').value = acc.username;
+            document.getElementById('em-pw').value = '';
+            var perms = acc.permissions || {};
+            document.getElementById('em-dash').checked = !!perms.dashboard;
+            document.getElementById('em-users').checked = !!perms.users;
+            document.getElementById('em-products').checked = !!perms.products;
+            document.getElementById('em-orders').checked = !!perms.orders;
+            document.getElementById('em-user').disabled = false;
+            document.getElementById('em-perms').style.display = '';
+            modal.hidden = false;
+            modal.classList.add('is-open');
+            modal.setAttribute('aria-hidden', 'false');
+          }
+        });
+
+        function closeModal() {
+          modal.classList.remove('is-open');
+          modal.hidden = true;
+          modal.setAttribute('aria-hidden', 'true');
+        }
+        modal.querySelectorAll('[data-em-close]').forEach(function (el) {
+          el.addEventListener('click', closeModal);
+        });
+
+        document.getElementById('em-save').addEventListener('click', function () {
+          var id = document.getElementById('em-id').value;
+          var patch = {
+            username: document.getElementById('em-user').value.trim(),
+            permissions: {
+              dashboard: document.getElementById('em-dash').checked,
+              users: document.getElementById('em-users').checked,
+              products: document.getElementById('em-products').checked,
+              orders: document.getElementById('em-orders').checked,
+            },
+          };
+          var pw = document.getElementById('em-pw').value;
+          if (pw) patch.password = pw;
+          var r = VIPStore.updateAdminAccount(id, patch);
+          if (!r.ok) {
+            Swal.fire({ icon: 'error', title: '儲存失敗', text: r.error || '' });
+            return;
+          }
+          closeModal();
+          render();
+          Swal.fire({ icon: 'success', title: '已儲存', timer: 800, showConfirmButton: false });
+        });
+
+        renderAgents();
+        render();
+      })();
+    </script>
+  </body>
+</html>

@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <script src="js/mall-mobile-guard.js"></script>
+    <title>購物車 · VIP</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" />
+    <link rel="stylesheet" href="css/app.css" />
+  </head>
+  <body>
+    <a class="skip" href="#main">主要內容</a>
+    <header class="topbar">
+      <div class="topbar-inner">
+        <a href="shop.html" class="logo">
+          <span class="logo-mark" aria-hidden="true"></span>
+          <span>VIP BOUTIQUE</span>
+        </a>
+        <div class="nav-actions">
+          <a class="btn-outline btn-sm" href="shop.html">繼續購物</a>
+          <a class="btn-outline btn-sm" href="orders.html">訂單</a>
+          <a href="checkout.html" class="btn-icon" aria-label="購物車">
+            <span aria-hidden="true">🛒</span>
+            <span class="badge is-empty" data-cart-count>0</span>
+          </a>
+          <button type="button" class="btn-outline btn-sm" id="out">登出</button>
+        </div>
+      </div>
+    </header>
+    <main id="main" class="page">
+      <div class="shell" style="max-width: 640px; margin: 0 auto">
+        <h1 class="page-title">購物車</h1>
+        <p class="page-sub">使用 <code>cart</code> 鍵（localStorage）。</p>
+        <ul class="trust-badges" role="list">
+          <li><span class="trust-badges__mark" aria-hidden="true">✔</span> 超商取貨付款</li>
+          <li><span class="trust-badges__mark" aria-hidden="true">✔</span> 不滿意可拒收</li>
+          <li><span class="trust-badges__mark" aria-hidden="true">✔</span> 24H客服支援</li>
+        </ul>
+        <div id="empty" class="card" style="padding: 1.5rem; text-align: center; display: none">
+          <p class="page-sub" style="margin: 0">購物車是空的。</p>
+          <a class="btn-gold" href="shop.html" style="margin-top: 1rem; display: inline-flex">前往商城</a>
+        </div>
+        <div id="panel" style="display: none">
+          <div id="list"></div>
+          <div class="cart-summary card" style="padding: 1rem 1.1rem; margin-top: 0.75rem">
+            <div class="cart-summary__row">
+              <span class="cart-summary__label">商品總金額</span>
+              <span class="cart-summary__val" id="cart-sub">NT$ 0</span>
+            </div>
+            <div class="cart-summary__row">
+              <span class="cart-summary__label">運費</span>
+              <span class="cart-summary__val" id="cart-ship">NT$ 70</span>
+            </div>
+            <div class="cart-summary__row cart-summary__row--grand">
+              <span class="cart-summary__label">總計</span>
+              <strong class="cart-summary__total" id="cart-tot">NT$ 0</strong>
+            </div>
+          </div>
+          <a class="btn-gold" href="checkout.html" style="width: 100%; margin-top: 1rem; display: flex; justify-content: center; box-sizing: border-box">前往結帳</a>
+        </div>
+        <nav class="footer-nav">
+          <a href="shop.html">商城</a>
+          <a href="orders.html">訂單</a>
+        </nav>
+      </div>
+    </main>
+    <script src="js/storage.js"></script>
+    <script src="js/mock-data.js"></script>
+    <script src="js/cart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.all.min.js"></script>
+    <script src="js/ux.js"></script>
+    <script>
+      (function () {
+        var agent = VIPStore.getAgent();
+        if (!agent || !agent.user) {
+          location.replace('login.html');
+          return;
+        }
+        if (!VIPStore.requireApprovedCustomer()) return;
+        VIPUX.bootLoader();
+        VIPUX.initCartBadge();
+        VIPUX.initExitIntentPopup();
+        VIPUX.initAgentContextBar();
+        document.getElementById('out').addEventListener('click', function () {
+          VIPStore.setAgent({ code: agent.code, name: agent.name });
+          location.href = 'login.html';
+        });
+        var list = document.getElementById('list');
+        var empty = document.getElementById('empty');
+        var panel = document.getElementById('panel');
+
+        function escHtml(s) {
+          return String(s)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;');
+        }
+
+        function escAttr(s) {
+          return String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;');
+        }
+
+        function letter(n) {
+          return (n && n.charAt(0).toUpperCase()) || '·';
+        }
+
+        function render() {
+          var items = CartAPI.getCart();
+          if (!items.length) {
+            empty.style.display = 'block';
+            panel.style.display = 'none';
+            return;
+          }
+          empty.style.display = 'none';
+          panel.style.display = 'block';
+          list.innerHTML = '';
+          items.forEach(function (it) {
+            var row = document.createElement('div');
+            row.className = 'cart-row';
+            var thumb =
+              it.image && (it.image.indexOf('data:') === 0 || /^https?:\/\//i.test(it.image))
+                ? '<img class="cart-thumb-img" src="' +
+                  escAttr(it.image) +
+                  '" alt="" width="64" height="64" loading="lazy" />'
+                : '<div class="thumb-ph">' + escHtml(letter(it.name)) + '</div>';
+            row.innerHTML =
+              thumb +
+              '<div><div style="font-weight:700">' +
+              escHtml(it.name) +
+              '</div><div class="page-sub" style="margin:0.1rem 0 0;font-size:0.8rem">' +
+              VIPStore.formatTWD(it.price) +
+              '</div><div class="qty-row"><button type="button" class="qty-btn" data-d="' +
+              escAttr(it.id) +
+              '">−</button><span style="min-width:2ch;text-align:center;font-weight:800">' +
+              it.qty +
+              '</span><button type="button" class="qty-btn" data-u="' +
+              escAttr(it.id) +
+              '">+</button><button type="button" class="btn-outline btn-sm" data-r="' +
+              escAttr(it.id) +
+              '" style="margin-left:0.35rem">移除</button></div></div><div style="text-align:right;font-weight:800">' +
+              VIPStore.formatTWD(it.price * it.qty) +
+              '</div>';
+            list.appendChild(row);
+          });
+          var sub = CartAPI.total();
+          var fee = VIPStore.SHIPPING_FEE_TWD;
+          document.getElementById('cart-sub').textContent = VIPStore.formatTWD(sub);
+          document.getElementById('cart-ship').textContent = VIPStore.formatTWD(fee);
+          document.getElementById('cart-tot').textContent = VIPStore.formatTWD(sub + fee);
+        }
+
+        list.addEventListener('click', function (e) {
+          var id = e.target.getAttribute('data-d') || e.target.getAttribute('data-u') || e.target.getAttribute('data-r');
+          if (!id) return;
+          if (e.target.hasAttribute('data-d')) CartAPI.dec(id);
+          else if (e.target.hasAttribute('data-u')) CartAPI.inc(id);
+          else if (e.target.hasAttribute('data-r')) CartAPI.remove(id);
+          render();
+        });
+
+        window.addEventListener('vip-storage-change', function (e) {
+          if (e.detail && e.detail.key === 'cart') render();
+        });
+        render();
+      })();
+    </script>
+  </body>
+</html>

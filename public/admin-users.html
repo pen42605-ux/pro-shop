@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>用戶管理 · VIP Admin</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" />
+    <link rel="stylesheet" href="css/app.css" />
+    <link rel="stylesheet" href="css/admin.css" />
+  </head>
+  <body class="admin-body">
+    <a class="skip" href="#main">主要內容</a>
+    <div class="admin-app">
+      <aside class="admin-sidebar" aria-label="後台選單">
+        <div class="admin-sidebar__brand">
+          <span class="admin-sidebar__brand-mark" aria-hidden="true">◆</span>
+          <span class="admin-sidebar__brand-text">VIP Admin</span>
+        </div>
+        <nav class="admin-sidebar__nav">
+          <a href="admin.html" data-admin-perm="dashboard"><span class="admin-sidebar__icon" aria-hidden="true">▣</span><span>儀表板</span></a>
+          <a href="admin-users.html" aria-current="page" data-admin-perm="users"
+            ><span class="admin-sidebar__icon" aria-hidden="true">👤</span><span>用戶</span></a
+          >
+          <a href="admin-products.html" data-admin-perm="products"><span class="admin-sidebar__icon" aria-hidden="true">🛍</span><span>商品</span></a>
+          <a href="admin-orders.html" data-admin-perm="orders"><span class="admin-sidebar__icon" aria-hidden="true">📦</span><span>訂單</span></a>
+          <a href="admin-admins.html" data-super-only><span class="admin-sidebar__icon" aria-hidden="true">⚙</span><span>管理者</span></a>
+        </nav>
+        <div class="admin-sidebar__foot">
+          <button type="button" class="btn-outline btn-sm" id="out">登出</button>
+        </div>
+      </aside>
+      <main class="admin-content" id="main">
+        <header class="admin-content__head">
+          <h1 class="admin-content__title">用戶管理</h1>
+          <p class="admin-content__sub">狀態：<strong>pending</strong> / <strong>active</strong> / <strong>blocked</strong> · 鍵名 <code>users</code></p>
+        </header>
+
+        <div class="admin-panel">
+          <h2 class="admin-panel__title">黑名單（電話）</h2>
+          <p class="page-sub" style="margin: 0 0 0.85rem; font-size: 0.82rem">與 <code>blacklist</code> 同步；結帳時比對號碼。</p>
+          <div class="admin-toolbar">
+            <input type="tel" id="block-phone-inp" class="input" style="max-width: 220px" placeholder="輸入電話" autocomplete="off" />
+            <button type="button" class="btn-gold btn-sm" id="btn-add-block">加入黑名單</button>
+          </div>
+          <ul id="block-list" class="admin-block-list" style="margin: 0; padding: 0; list-style: none"></ul>
+        </div>
+
+        <div class="admin-toolbar">
+          <label for="filter-st">篩選狀態</label>
+          <select id="filter-st" class="input">
+            <option value="all">全部</option>
+            <option value="pending">pending</option>
+            <option value="active">active</option>
+            <option value="blocked">blocked</option>
+          </select>
+        </div>
+
+        <div class="admin-table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>User ID</th>
+                <th>名稱</th>
+                <th>專屬代理代碼</th>
+                <th>狀態</th>
+                <th style="min-width: 160px">操作</th>
+              </tr>
+            </thead>
+            <tbody id="tb"></tbody>
+          </table>
+        </div>
+      </main>
+    </div>
+    <script src="js/storage.js"></script>
+    <script src="js/admin-nav.js"></script>
+    <script src="js/admin-helpers.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.all.min.js"></script>
+    <script src="js/ux.js"></script>
+    <script>
+      (function () {
+        if (!VIPStore.isAdmin()) {
+          location.replace('admin-login.html');
+          return;
+        }
+        if (!VIPStore.hasAdminPermission('users')) {
+          VIPStore.goToFallbackAdminPage();
+          return;
+        }
+        document.getElementById('out').addEventListener('click', function () {
+          VIPStore.adminLogout();
+          location.href = 'admin-login.html';
+        });
+
+        var tb = document.getElementById('tb');
+        var filterEl = document.getElementById('filter-st');
+        var blockList = document.getElementById('block-list');
+
+        function esc(s) {
+          return String(s)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;');
+        }
+        function escAttr(s) {
+          return String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;');
+        }
+
+        function statusBadge(st) {
+          if (st === 'active') {
+            return (
+              '<span class="ad-badge ad-badge--completed" style="border-color:rgba(160,200,120,0.5);color:#c8e6c9;background:rgba(40,70,45,0.35)">' +
+              esc(st) +
+              '</span>'
+            );
+          }
+          if (st === 'blocked') {
+            return (
+              '<span class="ad-badge" style="border-color:#c62828;color:#ffcdd2;background:rgba(120,20,20,0.35)">' +
+              esc(st) +
+              '</span>'
+            );
+          }
+          return '<span class="ad-badge ad-badge--pending">' + esc(st || 'pending') + '</span>';
+        }
+
+        function renderBlockList() {
+          blockList.innerHTML = '';
+          var phones = VIPStore.getBlacklist();
+          if (!phones.length) {
+            blockList.innerHTML = '<li class="page-sub" style="padding:0.5rem 0">尚無黑名單號碼。</li>';
+            return;
+          }
+          phones.forEach(function (p) {
+            var li = document.createElement('li');
+            li.className = 'admin-block-list__item';
+            li.style.cssText = 'display:flex;justify-content:space-between;align-items:center;padding:0.45rem 0;border-bottom:1px solid rgba(255,255,255,0.06)';
+            li.innerHTML =
+              '<span class="admin-block-list__num" style="font-family:ui-monospace">' +
+              esc(p) +
+              '</span><button type="button" class="btn-outline btn-sm btn-unblock" data-phone="' +
+              escAttr(p) +
+              '">移除</button>';
+            blockList.appendChild(li);
+          });
+        }
+
+        function renderTable() {
+          var flt = filterEl.value;
+          tb.innerHTML = '';
+          VIPStore.getUsers().forEach(function (u) {
+            var st = u.status || 'pending';
+            if (flt !== 'all' && st !== flt) return;
+            var tr = document.createElement('tr');
+            var id = escAttr(u.id);
+            tr.innerHTML =
+              '<td class="mono">' +
+              esc(u.id) +
+              '</td><td>' +
+              esc(u.displayName || '—') +
+              '</td><td class="mono">' +
+              esc(u.agentCode || '—') +
+              '</td><td>' +
+              statusBadge(st) +
+              '</td><td><div class="admin-actions">' +
+              (st !== 'active'
+                ? '<button type="button" class="btn-gold btn-sm btn-ap" data-id="' + id + '">核准</button>'
+                : '') +
+              (st !== 'blocked'
+                ? '<button type="button" class="btn-outline btn-sm btn-block" data-id="' + id + '">封鎖</button>'
+                : '<button type="button" class="btn-outline btn-sm btn-unblock-user" data-id="' + id + '">解除封鎖</button>') +
+              '</div></td>';
+            tb.appendChild(tr);
+          });
+        }
+
+        function renderAll() {
+          renderBlockList();
+          renderTable();
+        }
+
+        document.getElementById('btn-add-block').addEventListener('click', function () {
+          var raw = document.getElementById('block-phone-inp').value.trim();
+          if (!VIPStore.normalizePhone(raw)) {
+            Swal.fire({ icon: 'warning', title: '請輸入電話', confirmButtonText: '好的', customClass: { popup: 'vip-swal-popup' } });
+            return;
+          }
+          if (!VIPStore.addBlockedPhone(raw)) {
+            Swal.fire({ icon: 'info', title: '已存在', text: '此號碼已在黑名單。', confirmButtonText: '好的', customClass: { popup: 'vip-swal-popup' } });
+            return;
+          }
+          document.getElementById('block-phone-inp').value = '';
+          Swal.fire({ icon: 'success', title: '已加入', toast: true, position: 'top-end', timer: 1600, showConfirmButton: false });
+          renderAll();
+        });
+
+        blockList.addEventListener('click', function (e) {
+          var b = e.target.closest('.btn-unblock');
+          if (!b) return;
+          var p = b.getAttribute('data-phone');
+          VIPStore.removeBlockedPhone(p);
+          renderAll();
+        });
+
+        filterEl.addEventListener('change', renderTable);
+
+        tb.addEventListener('click', function (e) {
+          var ap = e.target.closest('.btn-ap');
+          var blk = e.target.closest('.btn-block');
+          var ublk = e.target.closest('.btn-unblock-user');
+          var id = (ap || blk || ublk) && (ap || blk || ublk).getAttribute('data-id');
+          if (!id) return;
+          var users = VIPStore.getUsers();
+          var u = users.find(function (x) {
+            return x.id === id;
+          });
+          if (!u) return;
+
+          if (ap) {
+            Swal.fire({
+              title: '核准用戶？',
+              text: u.displayName + ' 將可進入商城購物。',
+              icon: 'question',
+              showCancelButton: true,
+              confirmButtonText: '核准',
+              cancelButtonText: '取消',
+              reverseButtons: true,
+              customClass: { popup: 'vip-swal-popup', confirmButton: 'vip-swal-confirm' },
+            }).then(function (res) {
+              if (!res.isConfirmed) return;
+              u.status = 'active';
+              VIPStore.saveUsers(users);
+              Swal.fire({ icon: 'success', title: '已核准', toast: true, position: 'top-end', timer: 1800, showConfirmButton: false });
+              renderAll();
+            });
+            return;
+          }
+
+          if (blk) {
+            Swal.fire({
+              title: '封鎖用戶？',
+              text: '對方將無法使用商城（與 pending 不同）。',
+              icon: 'warning',
+              showCancelButton: true,
+              confirmButtonText: '封鎖',
+              cancelButtonText: '取消',
+              customClass: { popup: 'vip-swal-popup', confirmButton: 'vip-swal-confirm' },
+            }).then(function (res) {
+              if (!res.isConfirmed) return;
+              u.status = 'blocked';
+              VIPStore.saveUsers(users);
+              Swal.fire({ icon: 'success', title: '已封鎖', toast: true, position: 'top-end', timer: 1800, showConfirmButton: false });
+              renderAll();
+            });
+            return;
+          }
+
+          if (ublk) {
+            u.status = 'pending';
+            VIPStore.saveUsers(users);
+            Swal.fire({ icon: 'success', title: '已改為 pending', toast: true, position: 'top-end', timer: 1800, showConfirmButton: false });
+            renderAll();
+          }
+        });
+
+        window.addEventListener('vip-storage-change', function (e) {
+          if (!e.detail || !e.detail.key) return;
+          if (e.detail.key === 'blocked_phones' || e.detail.key === 'blacklist' || e.detail.key === 'users' || e.detail.key === 'orders') {
+            renderAll();
+          }
+        });
+
+        renderAll();
+      })();
+    </script>
+  </body>
+</html>

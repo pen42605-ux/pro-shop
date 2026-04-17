@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <script src="js/mall-mobile-guard.js"></script>
+    <title>註冊會員 · VIP BOUTIQUE</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" />
+    <link rel="stylesheet" href="css/app.css" />
+  </head>
+  <body class="vip-landing">
+    <a class="skip" href="#main">主要內容</a>
+    <header class="topbar">
+      <div class="topbar-inner">
+        <a href="shop.html" class="logo">
+          <span class="logo-mark" aria-hidden="true"></span>
+          <span>VIP BOUTIQUE</span>
+        </a>
+        <a class="btn-outline btn-sm" href="login.html">返回登入</a>
+      </div>
+    </header>
+    <main id="main" class="page">
+      <div class="center vip-landing-inner">
+        <header class="vip-hero is-vip-reveal">
+          <h1 class="vip-hero__title">建立帳號</h1>
+          <p class="vip-hero__sub">使用信箱註冊，與伺服器資料庫同步（須已設定 DATABASE_URL）。</p>
+        </header>
+
+        <div class="card vip-glass-card is-vip-reveal">
+          <form id="form-reg" novalidate>
+            <div class="field">
+              <label for="email">Email</label>
+              <input id="email" class="input" type="email" name="email" autocomplete="email" required />
+            </div>
+            <div class="field">
+              <label for="pw">密碼（至少 8 字）</label>
+              <input id="pw" class="input" type="password" name="password" autocomplete="new-password" minlength="8" required />
+            </div>
+            <div class="field">
+              <label for="pw2">確認密碼</label>
+              <input id="pw2" class="input" type="password" autocomplete="new-password" minlength="8" required />
+            </div>
+            <button type="submit" class="btn-gold" style="width: 100%">註冊</button>
+          </form>
+          <p class="vip-landing-hint" style="margin-top: 1rem; text-align: center">
+            已有帳號？<a href="login.html">前往登入</a>
+          </p>
+        </div>
+      </div>
+    </main>
+    <script src="js/storage.js"></script>
+    <script src="js/pro-api.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.all.min.js"></script>
+    <script>
+      (function () {
+        document.getElementById('form-reg').addEventListener('submit', function (e) {
+          e.preventDefault();
+          var email = document.getElementById('email').value.trim();
+          var pw = document.getElementById('pw').value;
+          var pw2 = document.getElementById('pw2').value;
+          if (pw !== pw2) {
+            Swal.fire({ icon: 'warning', title: '密碼不一致', text: '請再確認一次' });
+            return;
+          }
+          ProAPI.authRegister(email, pw)
+            .then(function () {
+              return Swal.fire({
+                icon: 'success',
+                title: '註冊成功',
+                text: '請改至登入頁使用信箱登入',
+                confirmButtonText: '前往登入',
+              });
+            })
+            .then(function () {
+              location.href = 'login.html';
+            })
+            .catch(function (err) {
+              Swal.fire({ icon: 'error', title: '註冊失敗', text: err.message || String(err) });
+            });
+        });
+      })();
+    </script>
+  </body>
+</html>

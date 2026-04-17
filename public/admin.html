@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>儀表板 · VIP Admin</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" />
+    <link rel="stylesheet" href="css/app.css" />
+    <link rel="stylesheet" href="css/admin.css" />
+  </head>
+  <body class="admin-body">
+    <a class="skip" href="#main">主要內容</a>
+    <div class="admin-app">
+      <aside class="admin-sidebar" aria-label="後台選單">
+        <div class="admin-sidebar__brand">
+          <span class="admin-sidebar__brand-mark" aria-hidden="true">◆</span>
+          <span class="admin-sidebar__brand-text">VIP Admin</span>
+        </div>
+        <nav class="admin-sidebar__nav">
+          <a href="admin.html" aria-current="page" data-admin-perm="dashboard"
+            ><span class="admin-sidebar__icon" aria-hidden="true">▣</span><span>儀表板</span></a
+          >
+          <a href="admin-users.html" data-admin-perm="users"><span class="admin-sidebar__icon" aria-hidden="true">👤</span><span>用戶</span></a>
+          <a href="admin-products.html" data-admin-perm="products"><span class="admin-sidebar__icon" aria-hidden="true">🛍</span><span>商品</span></a>
+          <a href="admin-orders.html" data-admin-perm="orders"><span class="admin-sidebar__icon" aria-hidden="true">📦</span><span>訂單</span></a>
+          <a href="admin-admins.html" data-super-only><span class="admin-sidebar__icon" aria-hidden="true">⚙</span><span>管理者</span></a>
+        </nav>
+        <div class="admin-sidebar__foot">
+          <button type="button" class="btn-outline btn-sm" id="out">登出</button>
+        </div>
+      </aside>
+      <main class="admin-content" id="main">
+        <header class="admin-content__head">
+          <h1 class="admin-content__title">儀表板</h1>
+          <p class="admin-content__sub">即時總覽 · 資料來源 <code>localStorage</code>（<code>users</code> / <code>orders</code>）</p>
+        </header>
+
+        <div class="admin-stat-grid">
+          <div class="admin-stat-card">
+            <p class="admin-stat-card__label">
+              <span class="admin-stat-card__icon" aria-hidden="true">📋</span> 總訂單
+            </p>
+            <p class="admin-stat-card__num" id="stat-orders">0</p>
+          </div>
+          <div class="admin-stat-card">
+            <p class="admin-stat-card__label">
+              <span class="admin-stat-card__icon" aria-hidden="true">💰</span> 總營收
+            </p>
+            <p class="admin-stat-card__num" id="stat-revenue">NT$ 0</p>
+          </div>
+          <div class="admin-stat-card">
+            <p class="admin-stat-card__label">
+              <span class="admin-stat-card__icon" aria-hidden="true">👥</span> 總用戶
+            </p>
+            <p class="admin-stat-card__num" id="stat-users">0</p>
+          </div>
+        </div>
+
+        <div class="admin-panel" id="announcement-panel">
+          <h2 class="admin-panel__title">網站公告</h2>
+          <p class="page-sub" style="margin: 0 0 1rem; font-size: 0.82rem">
+            顯示於前台 <strong>index.html</strong>（SweetAlert2 彈窗）與其他頁面頂部（金底黑字橫幅）。使用者可關閉；關閉狀態存於瀏覽器，更新公告內容後會再次顯示。
+          </p>
+          <div class="field">
+            <label for="an-text">公告內容</label>
+            <textarea id="an-text" class="input" rows="4" style="resize: vertical" placeholder="輸入公告文字…"></textarea>
+          </div>
+          <div class="admin-announcement-toggle field" style="margin-top: 0.75rem">
+            <label class="admin-toggle-label" for="an-enabled">
+              <input type="checkbox" id="an-enabled" class="admin-toggle-input" />
+              <span class="admin-toggle-ui" aria-hidden="true"></span>
+              <span>開啟公告（顯示於前台）</span>
+            </label>
+          </div>
+          <div class="admin-actions" style="margin-top: 1rem">
+            <button type="button" class="btn-gold btn-sm" id="an-save">儲存</button>
+            <button type="button" class="btn-outline btn-sm" id="an-preview">預覽</button>
+          </div>
+        </div>
+
+        <div class="admin-panel">
+          <h2 class="admin-panel__title">快速操作</h2>
+          <div class="admin-actions">
+            <a class="btn-gold btn-sm" href="admin-users.html" data-quick-perm="users">管理用戶</a>
+            <a class="btn-outline btn-sm" href="admin-orders.html" data-quick-perm="orders">訂單與出貨</a>
+            <a class="btn-outline btn-sm" href="admin-admins.html" data-super-only-quick style="display: none">管理者與權限</a>
+            <a class="btn-outline btn-sm" href="index.html">前往前台</a>
+          </div>
+        </div>
+      </main>
+    </div>
+    <script src="js/storage.js"></script>
+    <script src="js/admin-nav.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.all.min.js"></script>
+    <script>
+      (function () {
+        if (!VIPStore.isAdmin()) {
+          location.replace('admin-login.html');
+          return;
+        }
+        if (!VIPStore.hasAdminPermission('dashboard')) {
+          VIPStore.goToFallbackAdminPage();
+          return;
+        }
+        VIPStore.migrateOrdersShippingFields();
+
+        document.querySelectorAll('[data-quick-perm]').forEach(function (el) {
+          var k = el.getAttribute('data-quick-perm');
+          if (!VIPStore.hasAdminPermission(k)) el.style.display = 'none';
+        });
+        document.querySelectorAll('[data-super-only-quick]').forEach(function (el) {
+          if (VIPStore.isSuperAdmin()) el.style.display = 'inline-flex';
+        });
+
+        function escHtml(s) {
+          return String(s)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;');
+        }
+
+        function loadAnnouncementForm() {
+          var a = VIPStore.getAnnouncement();
+          document.getElementById('an-text').value = a.text || '';
+          document.getElementById('an-enabled').checked = !!a.enabled;
+        }
+
+        loadAnnouncementForm();
+
+        document.getElementById('an-save').addEventListener('click', function () {
+          var text = document.getElementById('an-text').value;
+          var enabled = document.getElementById('an-enabled').checked;
+          VIPStore.saveAnnouncement({ text: text, enabled: enabled });
+          Swal.fire({
+            icon: 'success',
+            iconColor: '#d4af37',
+            title: '已儲存',
+            text: '公告設定已寫入 localStorage。',
+            confirmButtonText: '好的',
+            customClass: { popup: 'vip-swal-popup' },
+          });
+        });
+
+        document.getElementById('an-preview').addEventListener('click', function () {
+          var text = document.getElementById('an-text').value.trim();
+          var enabled = document.getElementById('an-enabled').checked;
+          var hint = enabled
+            ? ''
+            : '<p style="margin:0 0 0.75rem;line-height:1.55;font-size:0.88rem;color:#8a8680;text-align:left">目前為「關閉」，前台不會顯示橫幅；以下僅為樣式預覽。</p>';
+          Swal.fire({
+            title: '公告預覽',
+            html:
+              hint +
+              '<div class="vip-announcement-preview-swal">' +
+              '<div class="vip-announcement-bar__inner" style="position:relative;border-radius:12px">' +
+              '<p class="vip-announcement-bar__text" style="padding-right:0.5rem;margin:0">' +
+              (text ? escHtml(text).replace(/\n/g, '<br />') : '（尚無文字）') +
+              '</p></div></div>',
+            width: 'min(520px, 92vw)',
+            confirmButtonText: '關閉',
+            customClass: { popup: 'vip-swal-popup' },
+          });
+        });
+
+        document.getElementById('out').addEventListener('click', function () {
+          VIPStore.adminLogout();
+          location.href = 'admin-login.html';
+        });
+
+        function refresh() {
+          var orders = VIPStore.getOrders();
+          var users = VIPStore.getUsers();
+          var rev = orders.reduce(function (s, o) {
+            return s + (Number(o.total) || 0);
+          }, 0);
+          document.getElementById('stat-orders').textContent = String(orders.length);
+          document.getElementById('stat-revenue').textContent = VIPStore.formatTWD(rev);
+          document.getElementById('stat-users').textContent = String(users.length);
+        }
+        refresh();
+        window.addEventListener('vip-storage-change', function (e) {
+          if (!e.detail || !e.detail.key) return;
+          if (e.detail.key === 'orders' || e.detail.key === 'users') refresh();
+          if (e.detail.key === 'announcement') loadAnnouncementForm();
+        });
+      })();
+    </script>
+  </body>
+</html>

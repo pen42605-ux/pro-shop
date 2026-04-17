@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <script src="js/mall-mobile-guard.js"></script>
+    <title>結帳下單 · VIP</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" />
+    <link rel="stylesheet" href="css/app.css" />
+  </head>
+  <body>
+    <a class="skip" href="#main">主要內容</a>
+    <header class="topbar">
+      <div class="topbar-inner">
+        <a href="shop.html" class="logo">
+          <span class="logo-mark" aria-hidden="true"></span>
+          <span>VIP BOUTIQUE</span>
+        </a>
+        <div class="nav-actions">
+          <a class="btn-outline btn-sm" href="shop.html">商城</a>
+          <a class="btn-outline btn-sm" href="orders.html">訂單</a>
+          <a href="checkout.html" class="btn-icon" aria-label="購物車">
+            <span aria-hidden="true">🛒</span>
+            <span class="badge is-empty" data-cart-count>0</span>
+          </a>
+          <button type="button" class="btn-outline btn-sm" id="out">登出</button>
+        </div>
+      </div>
+    </header>
+    <main id="main" class="page checkout-page">
+      <div class="shell" style="max-width: 640px; margin: 0 auto">
+        <h1 class="page-title">結帳下單</h1>
+        <p class="page-sub">此頁可確認購物明細並填寫收件資料，貨到付款（COD）一次完成。</p>
+        <ul class="trust-badges" role="list">
+          <li><span class="trust-badges__mark" aria-hidden="true">✔</span> 超商取貨付款</li>
+          <li><span class="trust-badges__mark" aria-hidden="true">✔</span> 不滿意可拒收</li>
+          <li><span class="trust-badges__mark" aria-hidden="true">✔</span> 24H客服支援</li>
+        </ul>
+        <div class="card checkout-cart-card" style="padding: 1.15rem 1.2rem; margin-bottom: 1rem">
+          <h2 class="checkout-section-title">購物明細</h2>
+          <p class="page-sub" style="margin: 0 0 0.65rem; font-size: 0.78rem">可調整數量；清空後將返回購物車頁。</p>
+          <div id="checkout-list"></div>
+          <div class="checkout-price-breakdown" aria-label="金額明細">
+            <div class="checkout-sum-row">
+              <span>商品金額</span>
+              <span id="chk-sub">—</span>
+            </div>
+            <div class="checkout-sum-row">
+              <span>運費</span>
+              <span id="chk-fee">—</span>
+            </div>
+            <div class="checkout-sum-row checkout-sum-row--grand">
+              <span>總計</span>
+              <strong id="sum" class="vip-money-total">—</strong>
+            </div>
+          </div>
+        </div>
+        <div class="card" style="padding: 1.35rem 1.2rem">
+          <h2 class="checkout-section-title">收件資料</h2>
+          <form id="f">
+            <div class="field">
+              <label for="name">姓名</label>
+              <input id="name" class="input" required autocomplete="name" />
+            </div>
+            <div class="field">
+              <label for="phone">電話</label>
+              <input id="phone" class="input" type="tel" required autocomplete="tel" />
+            </div>
+            <div class="field">
+              <label for="store">門市名稱（7-11）</label>
+              <div class="store-field-row">
+                <input id="store" class="input" required placeholder="點「選擇門市」或自行輸入" />
+                <button type="button" class="btn-outline btn-pick-store" id="btn-pick-store" style="white-space: nowrap; flex-shrink: 0">
+                  選擇門市
+                </button>
+              </div>
+            </div>
+            <p class="page-sub" style="margin: 0 0 0.5rem; font-size: 0.72rem; text-transform: uppercase">付款方式</p>
+            <label class="card" style="display: flex; align-items: center; gap: 0.65rem; padding: 0.85rem; margin-bottom: 1rem; cursor: default">
+              <input type="radio" name="pay" checked />
+              <span><strong>貨到付款 COD</strong>（唯一選項）</span>
+            </label>
+            <button type="submit" class="btn-gold checkout-submit-inline" style="width: 100%">送出訂單</button>
+          </form>
+        </div>
+      </div>
+    </main>
+
+    <div class="checkout-sticky-bar">
+      <button type="submit" form="f" class="btn-gold checkout-sticky-submit">送出訂單</button>
+    </div>
+
+    <div id="store-modal" class="store-modal" hidden role="dialog" aria-modal="true" aria-labelledby="store-modal-title">
+      <div class="store-modal__backdrop" data-modal-close tabindex="-1" aria-hidden="true"></div>
+      <div class="store-modal__panel">
+        <button type="button" class="store-modal__close" data-modal-close aria-label="關閉">×</button>
+        <h2 id="store-modal-title">選擇 7-ELEVEN 門市</h2>
+        <ul class="store-list" id="store-list"></ul>
+      </div>
+    </div>
+
+    <script src="js/storage.js"></script>
+    <script src="js/mock-data.js"></script>
+    <script src="js/products.js"></script>
+    <script src="js/cart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.all.min.js"></script>
+    <script src="js/ux.js"></script>
+    <script>
+      (function () {
+        var agent = VIPStore.getAgent();
+        if (!agent || !agent.user) {
+          location.replace('login.html');
+          return;
+        }
+        if (!VIPStore.requireApprovedCustomer()) return;
+        if (!VIPStore.canUserPlaceOrder(agent.user.id)) {
+          Swal.fire({
+            icon: 'info',
+            title: '已達訂單上限',
+            html: '<p style="margin:0;line-height:1.55">每位會員目前限購 <strong>1</strong> 筆訂單（示範規則）。若需再次購買請聯絡客服。</p>',
+            confirmButtonText: '查看訂單',
+          }).then(function () {
+            location.href = 'orders.html';
+          });
+          return;
+        }
+        if (!CartAPI.getCart().length) {
+          location.replace('cart.html');
+          return;
+        }
+        VIPUX.bootLoader();
+        VIPUX.initCartBadge();
+        VIPUX.initExitIntentPopup();
+        VIPUX.initAgentContextBar();
+        document.getElementById('out').addEventListener('click', function () {
+          VIPStore.setAgent({ code: agent.code, name: agent.name });
+          location.href = 'login.html';
+        });
+        var u = agent.user;
+        document.getElementById('name').value = u.displayName || '';
+
+        var checkoutList = document.getElementById('checkout-list');
+
+        function escHtml(s) {
+          return String(s)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;');
+        }
+
+        function escAttr(s) {
+          return String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;');
+        }
+
+        function letter(n) {
+          return (n && n.charAt(0).toUpperCase()) || '·';
+        }
+
+        function syncSum() {
+          var sub = CartAPI.total();
+          var fee = VIPStore.SHIPPING_FEE_TWD;
+          document.getElementById('chk-sub').textContent = VIPStore.formatTWD(sub);
+          document.getElementById('chk-fee').textContent = VIPStore.formatTWD(fee);
+          document.getElementById('sum').textContent = VIPStore.formatTWD(sub + fee);
+        }
+
+        function renderCheckoutCart() {
+          var items = CartAPI.getCart();
+          if (!items.length) {
+            location.replace('cart.html');
+            return;
+          }
+          checkoutList.innerHTML = '';
+          items.forEach(function (it) {
+            var row = document.createElement('div');
+            row.className = 'cart-row';
+            var thumb =
+              it.image && (it.image.indexOf('data:') === 0 || /^https?:\/\//i.test(it.image))
+                ? '<img class="cart-thumb-img" src="' +
+                  escAttr(it.image) +
+                  '" alt="" width="64" height="64" loading="lazy" />'
+                : '<div class="thumb-ph">' + escHtml(letter(it.name)) + '</div>';
+            row.innerHTML =
+              thumb +
+              '<div><div style="font-weight:700">' +
+              escHtml(it.name) +
+              '</div><div class="page-sub" style="margin:0.1rem 0 0;font-size:0.8rem">' +
+              VIPStore.formatTWD(it.price) +
+              '</div><div class="qty-row"><button type="button" class="qty-btn" data-d="' +
+              escAttr(it.id) +
+              '">−</button><span style="min-width:2ch;text-align:center;font-weight:800">' +
+              it.qty +
+              '</span><button type="button" class="qty-btn" data-u="' +
+              escAttr(it.id) +
+              '">+</button><button type="button" class="btn-outline btn-sm" data-r="' +
+              escAttr(it.id) +
+              '" style="margin-left:0.35rem">移除</button></div></div><div style="text-align:right;font-weight:800">' +
+              VIPStore.formatTWD(it.price * it.qty) +
+              '</div>';
+            checkoutList.appendChild(row);
+          });
+          syncSum();
+        }
+
+        checkoutList.addEventListener('click', function (e) {
+          var id = e.target.getAttribute('data-d') || e.target.getAttribute('data-u') || e.target.getAttribute('data-r');
+          if (!id) return;
+          if (e.target.hasAttribute('data-d')) CartAPI.dec(id);
+          else if (e.target.hasAttribute('data-u')) CartAPI.inc(id);
+          else if (e.target.hasAttribute('data-r')) CartAPI.remove(id);
+          renderCheckoutCart();
+        });
+
+        window.addEventListener('vip-storage-change', function (e) {
+          if (e.detail && e.detail.key === 'cart') renderCheckoutCart();
+        });
+
+        renderCheckoutCart();
+
+        function makeId() {
+          return 'ORD-' + Date.now().toString(36).toUpperCase() + '-' + Math.random().toString(36).slice(2, 6).toUpperCase();
+        }
+
+        var STORES = ['台北信義門市', '板橋文化門市', '西門町門市'];
+        var modal = document.getElementById('store-modal');
+        var storeInput = document.getElementById('store');
+        var listEl = document.getElementById('store-list');
+
+        STORES.forEach(function (name) {
+          var li = document.createElement('li');
+          var btn = document.createElement('button');
+          btn.type = 'button';
+          btn.textContent = '7-11 ' + name;
+          btn.addEventListener('click', function () {
+            storeInput.value = '7-11 ' + name;
+            closeModal();
+            storeInput.focus();
+          });
+          li.appendChild(btn);
+          listEl.appendChild(li);
+        });
+
+        function openModal() {
+          modal.hidden = false;
+          document.body.classList.add('store-modal-open');
+        }
+
+        function closeModal() {
+          modal.hidden = true;
+          document.body.classList.remove('store-modal-open');
+        }
+
+        document.getElementById('btn-pick-store').addEventListener('click', openModal);
+
+        modal.querySelectorAll('[data-modal-close]').forEach(function (el) {
+          el.addEventListener('click', function (e) {
+            if (e.target === el) closeModal();
+          });
+        });
+
+        document.addEventListener('keydown', function (e) {
+          if (e.key === 'Escape' && !modal.hidden) closeModal();
+        });
+
+        document.getElementById('f').addEventListener('submit', function (e) {
+          e.preventDefault();
+          var name = document.getElementById('name').value.trim();
+          var phone = document.getElementById('phone').value.trim();
+          var store = document.getElementById('store').value.trim();
+          if (!name || !phone || !store) {
+            Swal.fire({
+              icon: 'warning',
+              title: '請填寫完整欄位',
+              confirmButtonText: '好的',
+            });
+            return;
+          }
+          if (VIPStore.isPhoneBlocked(phone)) {
+            Swal.fire({
+              icon: 'error',
+              title: '此電話已被封鎖',
+              text: '無法建立訂單，請聯絡客服。',
+              confirmButtonText: '好的',
+            });
+            return;
+          }
+          VIPUX.showLoader();
+          window.setTimeout(function () {
+            var items = CartAPI.getCart().map(function (x) {
+              return {
+                id: x.id,
+                line_id: x.id,
+                product_id: x.product_id,
+                name: x.name,
+                price: x.price,
+                qty: x.qty,
+                category: x.category,
+                combo: x.combo || [],
+                image: x.image || '',
+              };
+            });
+            var subtotal = CartAPI.total();
+            var shippingFee = VIPStore.SHIPPING_FEE_TWD;
+            var orderId = makeId();
+            var orders = VIPStore.getOrders();
+            var nowIso = new Date().toISOString();
+            orders.unshift({
+              orderId: orderId,
+              userId: agent.user.id,
+              name: name,
+              phone: phone,
+              store_name: store,
+              items: items,
+              subtotal: subtotal,
+              shipping_fee: shippingFee,
+              total: subtotal + shippingFee,
+              payment: 'COD',
+              shipping_status: 'pending',
+              status: 'pending',
+              createdAt: nowIso,
+              created_at: nowIso,
+            });
+            VIPStore.saveOrders(orders);
+            CartAPI.clear();
+            VIPUX.hideLoader();
+            Swal.fire({
+              icon: 'success',
+              iconColor: '#d4af37',
+              title: '訂單已建立',
+              html:
+                '<div class="vip-order-success-burst" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></div>' +
+                '<p style="margin:0 0 0.35rem;color:#9e9a94;font-size:0.88rem">訂單編號</p><p style="margin:0;font-family:ui-monospace,monospace;font-weight:800;font-size:1.05rem;color:#f5e6a8">' +
+                orderId +
+                '</p><p style="margin:0.65rem 0 0;font-size:0.82rem;color:#8a8680;line-height:1.45">感謝您的選購，接下來將為您安排出貨。</p>',
+              confirmButtonText: '前往訂單摘要',
+              customClass: {
+                popup: 'vip-swal-popup vip-swal-order-success',
+                confirmButton: 'vip-swal-confirm',
+              },
+            }).then(function () {
+              location.href = 'success.html?order=' + encodeURIComponent(orderId);
+            });
+          }, 380);
+        });
+      })();
+    </script>
+  </body>
+</html>

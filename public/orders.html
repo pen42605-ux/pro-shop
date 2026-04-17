@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <script src="js/mall-mobile-guard.js"></script>
+    <title>我的訂單 · VIP</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" />
+    <link rel="stylesheet" href="css/app.css" />
+  </head>
+  <body>
+    <a class="skip" href="#main">主要內容</a>
+    <header class="topbar">
+      <div class="topbar-inner">
+        <a href="shop.html" class="logo">
+          <span class="logo-mark" aria-hidden="true"></span>
+          <span>VIP BOUTIQUE</span>
+        </a>
+        <div class="nav-actions">
+          <a class="btn-outline btn-sm" href="shop.html">商城</a>
+          <a href="checkout.html" class="btn-icon" aria-label="購物車">
+            <span aria-hidden="true">🛒</span>
+            <span class="badge is-empty" data-cart-count>0</span>
+          </a>
+          <button type="button" class="btn-outline btn-sm" id="out">登出</button>
+        </div>
+      </div>
+    </header>
+    <main id="main" class="page">
+      <div class="shell">
+        <h1 class="page-title">我的訂單</h1>
+        <p class="page-sub">從 <code>orders</code> 篩選目前登入會員。</p>
+        <div id="empty" class="card" style="padding: 1.5rem; display: none; text-align: center">
+          <p class="page-sub" style="margin: 0">尚無訂單。</p>
+          <a class="btn-gold" href="shop.html" style="margin-top: 1rem; display: inline-flex">去逛逛</a>
+        </div>
+        <div id="list">
+          <div class="vip-orders-root-skeleton" aria-hidden="true">
+            <div class="vip-skeleton-card">
+              <div class="vip-skeleton vip-skeleton-line vip-skeleton-line--title"></div>
+              <div class="vip-skeleton vip-skeleton-line vip-skeleton-line--body"></div>
+              <div class="vip-skeleton vip-skeleton-line vip-skeleton-line--body-short"></div>
+            </div>
+            <div class="vip-skeleton-card">
+              <div class="vip-skeleton vip-skeleton-line vip-skeleton-line--title"></div>
+              <div class="vip-skeleton vip-skeleton-line vip-skeleton-line--body"></div>
+              <div class="vip-skeleton vip-skeleton-line vip-skeleton-line--body-short"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+    <script src="js/storage.js"></script>
+    <script src="js/mock-data.js"></script>
+    <script src="js/products.js"></script>
+    <script src="js/cart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.all.min.js"></script>
+    <script src="js/ux.js"></script>
+    <script>
+      (function () {
+        var agent = VIPStore.getAgent();
+        if (!agent || !agent.user) {
+          location.replace('login.html');
+          return;
+        }
+        if (!VIPStore.requireApprovedCustomer()) return;
+        VIPUX.bootLoader();
+        VIPUX.initCartBadge();
+        VIPUX.initAgentContextBar();
+        document.getElementById('out').addEventListener('click', function () {
+          VIPStore.setAgent({ code: agent.code, name: agent.name });
+          location.href = 'login.html';
+        });
+        var uid = agent.user.id;
+        var mine = [];
+        var list = document.getElementById('list');
+        var empty = document.getElementById('empty');
+
+        function escAttr(s) {
+          return String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;');
+        }
+
+        function escHtml(s) {
+          return String(s)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;');
+        }
+
+        function formatTrackWhen(iso) {
+          if (!iso) return '—';
+          try {
+            return new Date(iso).toLocaleString('zh-TW', {
+              month: '2-digit',
+              day: '2-digit',
+              hour: '2-digit',
+              minute: '2-digit',
+              hour12: false,
+            });
+          } catch (e) {
+            return '—';
+          }
+        }
+
+        function buildTrackingRail(o) {
+          var st = VIPStore.normalizeOrderStatus(o);
+          var stepIdx = { pending: 0, shipped: 1, delivering: 2, completed: 3 }[st];
+          if (stepIdx == null) {
+            stepIdx = 0;
+          }
+          var labels = ['訂單成立', '已出貨', '配送中', '已完成'];
+          var activeIcon = ['✔', '✔', '🚚', '📦'];
+          var dates = [o.created_at || o.createdAt, o.shipped_at, o.delivering_at, o.completed_at];
+          var parts = [];
+          for (var i = 0; i < 4; i++) {
+            var state = i < stepIdx ? 'done' : i === stepIdx ? 'current' : 'future';
+            var icon =
+              state === 'future' ? '○' : state === 'done' ? '✔' : activeIcon[i];
+            parts.push(
+              '<div class="vip-order-track__node vip-order-track__node--' +
+                state +
+                '" style="animation-delay:' +
+                0.07 * i +
+                's">' +
+                '<span class="vip-order-track__icon" aria-hidden="true">' +
+                icon +
+                '</span>' +
+                '<span class="vip-order-track__label">' +
+                escHtml(labels[i]) +
+                '</span>' +
+                '<span class="vip-order-track__date">' +
+                escHtml(formatTrackWhen(dates[i])) +
+                '</span></div>'
+            );
+            if (i < 3) {
+              var seg = i < stepIdx ? 'done' : 'future';
+              parts.push('<div class="vip-order-track__seg vip-order-track__seg--' + seg + '" aria-hidden="true"></div>');
+            }
+          }
+          return (
+            '<div class="vip-order-track-wrap">' +
+            '<p class="vip-order-track__title">物流進度</p>' +
+            '<div class="vip-order-track vip-order-track--enter" role="group" aria-label="訂單進度">' +
+            parts.join('') +
+            '</div></div>'
+          );
+        }
+
+        function renderList() {
+          VIPStore.migrateOrdersShippingFields();
+          mine = VIPStore.getOrders().filter(function (o) {
+            return o.userId === uid;
+          });
+          list.innerHTML = '';
+          if (!mine.length) {
+            empty.style.display = 'block';
+            return;
+          }
+          empty.style.display = 'none';
+          mine.forEach(function (o) {
+            var card = document.createElement('div');
+            card.className = 'card vip-order-card';
+            card.style.padding = '1rem 1.1rem';
+            card.style.marginBottom = '0.75rem';
+            var itemsStr = (o.items || [])
+              .map(function (it) {
+                return it.name + ' ×' + it.qty;
+              })
+              .join('、');
+            var ship = VIPStore.normalizeOrderStatus(o);
+            var shipLabel = VIPStore.shippingStatusLabel(ship);
+            var money = VIPStore.getOrderDisplayTotals(o);
+            card.innerHTML =
+              '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:0.75rem;flex-wrap:wrap">' +
+              '<div><div style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;margin-bottom:0.25rem">' +
+              '<strong style="font-family:ui-monospace,monospace">' +
+              escHtml(o.orderId) +
+              '</strong><span class="ship-badge ship-badge--' +
+              ship +
+              '">' +
+              escHtml(shipLabel) +
+              '</span></div>' +
+              '<div class="order-money-breakdown">' +
+              '<div class="order-money-breakdown__row"><span>商品金額</span><span>' +
+              escHtml(VIPStore.formatTWD(money.subtotal)) +
+              '</span></div>' +
+              '<div class="order-money-breakdown__row"><span>運費</span><span>' +
+              escHtml(VIPStore.formatTWD(money.shipping_fee)) +
+              '</span></div>' +
+              '<div class="order-money-breakdown__row order-money-breakdown__row--grand"><span>總計</span><span class="vip-money-total">' +
+              escHtml(VIPStore.formatTWD(money.total)) +
+              '</span></div></div>' +
+              '<p class="order-line">' +
+              escHtml(itemsStr) +
+              '</p></div><span class="tag">' +
+              escHtml(o.payment || 'COD') +
+              '</span></div>' +
+              buildTrackingRail(o) +
+              '<div class="order-actions">' +
+              '<button type="button" class="btn-outline btn-sm btn-reorder" data-order-id="' +
+              escAttr(o.orderId) +
+              '">再買一次</button>' +
+              '<a class="btn-outline btn-sm" href="shop.html" style="margin-left:0.35rem">繼續購物</a>' +
+              '</div>';
+            list.appendChild(card);
+          });
+        }
+
+        renderList();
+
+        window.addEventListener('vip-storage-change', function (e) {
+          if (e.detail && e.detail.key === 'orders') renderList();
+        });
+
+        window.setInterval(function () {
+          VIPStore.migrateOrdersShippingFields();
+        }, 60 * 1000);
+
+        list.addEventListener('click', function (e) {
+          var btn = e.target.closest('.btn-reorder');
+          if (!btn) return;
+          var oid = btn.getAttribute('data-order-id');
+          if (!oid) return;
+          var ord = mine.find(function (x) {
+            return x.orderId === oid;
+          });
+          if (!ord) return;
+          CartAPI.reorderFromOrder(ord);
+          var qtySum = (ord.items || []).reduce(function (s, it) {
+            return s + (Number(it.qty) || 0);
+          }, 0);
+          Swal.fire({
+            toast: true,
+            position: 'top-end',
+            icon: 'success',
+            iconColor: '#d4af37',
+            title: '已加入購物車',
+            html:
+              '<p class="vip-swal-add-cart-name">共 <strong style="color:#e8e4dc">' +
+              qtySum +
+              '</strong> 件商品（訂單 ' +
+              escAttr(ord.orderId) +
+              '）</p><p class="vip-swal-add-cart-name" style="margin-top:0.35rem;font-size:0.76rem;font-weight:500;color:#7a756c">可至結帳頁一次完成收件資料</p>',
+            showConfirmButton: false,
+            timer: 2400,
+            timerProgressBar: true,
+            customClass: { popup: 'vip-swal-toast vip-swal-toast--add-cart' },
+          });
+        });
+      })();
+    </script>
+  </body>
+</html>

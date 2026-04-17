@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>後台登入 · VIP Admin</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" />
+    <link rel="stylesheet" href="css/app.css" />
+    <link rel="stylesheet" href="css/admin.css" />
+  </head>
+  <body class="admin-body" style="background: #0a0a0a">
+    <a class="skip" href="#main">主要內容</a>
+    <main id="main" class="admin-login-page">
+      <div class="admin-login-card">
+        <h1>管理後台</h1>
+        <p style="margin: 0 0 1.25rem; text-align: center; font-size: 0.82rem; color: #8a8680; line-height: 1.55">
+          最上層管理者：<strong style="color: #f5e6a8">superadmin</strong>／<strong style="color: #f5e6a8">super123</strong><br />
+          一般管理者：<strong style="color: #f5e6a8">staff</strong>／<strong style="color: #f5e6a8">admin123</strong>（權限可由 super 調整）<br />
+          <span style="font-size: 0.76rem; opacity: 0.9">資料存於此瀏覽器 <code>localStorage</code></span>
+        </p>
+        <form id="f">
+          <div class="field">
+            <label for="user">帳號</label>
+            <input id="user" class="input" type="text" autocomplete="username" placeholder="superadmin 或 staff" />
+          </div>
+          <div class="field">
+            <label for="pw">密碼</label>
+            <input id="pw" class="input" type="password" autocomplete="current-password" placeholder="•••••••" />
+          </div>
+          <button type="submit" class="btn-gold" style="width: 100%; margin-top: 0.35rem">登入</button>
+        </form>
+        <p style="margin: 1.25rem 0 0; text-align: center">
+          <a href="index.html" class="btn-outline btn-sm" style="display: inline-flex">返回前台</a>
+        </p>
+      </div>
+    </main>
+    <script src="js/storage.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.all.min.js"></script>
+    <script src="js/ux.js"></script>
+    <script>
+      (function () {
+        if (VIPStore.isAdmin()) {
+          VIPStore.goToFallbackAdminPage();
+          return;
+        }
+        document.getElementById('f').addEventListener('submit', function (e) {
+          e.preventDefault();
+          var u = document.getElementById('user').value;
+          var v = document.getElementById('pw').value;
+          var res = VIPStore.adminLogin(u, v);
+          if (!res.ok) {
+            Swal.fire({
+              icon: 'error',
+              title: '登入失敗',
+              text: res.error || '帳號或密碼錯誤',
+              confirmButtonText: '重試',
+              customClass: { popup: 'vip-swal-popup', confirmButton: 'vip-swal-confirm' },
+            });
+            return;
+          }
+          VIPUX.showLoader();
+          window.setTimeout(function () {
+            VIPUX.hideLoader();
+            Swal.fire({
+              icon: 'success',
+              title: '登入成功',
+              text: '正在進入後台…',
+              timer: 700,
+              showConfirmButton: false,
+              customClass: { popup: 'vip-swal-popup' },
+            }).then(function () {
+              VIPStore.goToFallbackAdminPage();
+            });
+          }, 420);
+        });
+      })();
+    </script>
+  </body>
+</html>

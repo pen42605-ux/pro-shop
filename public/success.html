@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <script src="js/mall-mobile-guard.js"></script>
+    <title>訂單成立 · VIP</title>
+    <link rel="stylesheet" href="css/app.css" />
+  </head>
+  <body>
+    <a class="skip" href="#main">主要內容</a>
+    <header class="topbar">
+      <div class="topbar-inner">
+        <a href="shop.html" class="logo">
+          <span class="logo-mark" aria-hidden="true"></span>
+          <span>VIP BOUTIQUE</span>
+        </a>
+        <div class="nav-actions">
+          <a class="btn-outline btn-sm" href="shop.html">商城</a>
+          <a class="btn-outline btn-sm" href="orders.html">訂單</a>
+          <a href="checkout.html" class="btn-icon" aria-label="購物車">
+            <span aria-hidden="true">🛒</span>
+            <span class="badge is-empty" data-cart-count>0</span>
+          </a>
+        </div>
+      </div>
+    </header>
+    <main id="main" class="page page--order-success">
+      <div class="center">
+        <div class="vip-success-hero" aria-hidden="true">
+          <div class="vip-success-hero__ring"></div>
+          <div class="vip-success-hero__check">✓</div>
+        </div>
+        <h1 class="page-title vip-success-reveal vip-success-reveal--1" style="text-align: center">訂單成立</h1>
+        <p class="page-sub vip-success-reveal vip-success-reveal--2" style="text-align: center">購物車已清空（<code>cart</code>）。</p>
+        <div class="card vip-success-reveal vip-success-reveal--3" style="padding: 1.75rem 1.25rem; text-align: center">
+          <p class="page-sub" style="margin: 0 0 0.25rem">訂單編號</p>
+          <p id="oid" style="font-size: 1.15rem; font-weight: 800; letter-spacing: 0.06em; color: var(--gold-light); margin: 0">—</p>
+        </div>
+        <div class="vip-success-reveal vip-success-reveal--4" style="margin-top: 1.25rem; display: flex; flex-direction: column; gap: 0.6rem">
+          <a class="btn-gold" href="shop.html" style="justify-content: center">繼續購物</a>
+          <a class="btn-outline" href="orders.html" style="justify-content: center">查看訂單</a>
+        </div>
+      </div>
+    </main>
+    <script src="js/storage.js"></script>
+    <script src="js/cart.js"></script>
+    <script src="js/ux.js"></script>
+    <script>
+      (function () {
+        var q = new URLSearchParams(location.search).get('order');
+        if (!q) {
+          location.replace('shop.html');
+          return;
+        }
+        var orders = VIPStore.getOrders();
+        var ok = orders.some(function (o) {
+          return o.orderId === q;
+        });
+        if (!ok) {
+          location.replace('shop.html');
+          return;
+        }
+        VIPStore.clearCart();
+        VIPUX.initCartBadge();
+        VIPUX.initAgentContextBar();
+        document.getElementById('oid').textContent = q;
+      })();
+    </script>
+  </body>
+</html>

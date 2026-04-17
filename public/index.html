@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>專屬代理通道 · VIP BOUTIQUE</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" />
+    <link rel="stylesheet" href="css/app.css" />
+  </head>
+  <body data-vip-home="1" class="vip-landing">
+    <a class="skip" href="#main">主要內容</a>
+    <header class="topbar">
+      <div class="topbar-inner">
+        <a href="index.html" class="logo" aria-current="page">
+          <span class="logo-mark" aria-hidden="true"></span>
+          <span>VIP BOUTIQUE</span>
+        </a>
+        <a class="btn-outline btn-sm" href="admin-login.html">後台</a>
+      </div>
+    </header>
+    <main id="main" class="page">
+      <div class="center vip-landing-inner">
+        <header class="vip-hero is-vip-reveal">
+          <p class="vip-hero__badge">限會員可見價格</p>
+          <h1 class="vip-hero__title">專屬代理通道開啟</h1>
+          <p class="vip-hero__sub">輸入<strong>專屬代理代碼</strong>，立即解鎖會員專屬優惠價格</p>
+        </header>
+
+        <div id="msg" class="msg msg-err" role="status"></div>
+
+        <div class="card vip-glass-card is-vip-reveal">
+          <form id="f">
+            <div class="field">
+              <label for="code">專屬代理代碼</label>
+              <input id="code" class="input" type="text" autocomplete="off" placeholder="請輸入專屬代理代碼（例：GOLD）" />
+            </div>
+            <button type="submit" class="btn-gold" style="width: 100%">立即驗證並進入</button>
+          </form>
+          <p class="vip-landing-hint">
+            僅限後台已登記之<strong>專屬代理代碼</strong>。連結可帶 <code>?ref=</code>、<code>?utm_source=</code> 或 <code>?source=</code>，頁首會顯示推薦來源。
+          </p>
+        </div>
+
+        <ul class="vip-features is-vip-reveal" aria-label="會員權益">
+          <li class="vip-feat">
+            <span class="vip-feat__icon" aria-hidden="true">⚡</span>
+            <span class="vip-feat__text">極速下單</span>
+          </li>
+          <li class="vip-feat">
+            <span class="vip-feat__icon" aria-hidden="true">📦</span>
+            <span class="vip-feat__text">快速出貨</span>
+          </li>
+          <li class="vip-feat">
+            <span class="vip-feat__icon" aria-hidden="true">💬</span>
+            <span class="vip-feat__text">專屬客服支援</span>
+          </li>
+        </ul>
+
+        <section class="vip-countdown is-vip-reveal" aria-labelledby="vip-countdown-title">
+          <h2 class="vip-countdown__title" id="vip-countdown-title">🔥 今日訂單截止倒數</h2>
+          <p class="vip-countdown__sub">錯過需等明日配送</p>
+          <div class="vip-countdown__digits" id="vip-countdown-digits" aria-live="polite">--:--:--</div>
+        </section>
+
+        <section class="vip-delivery is-vip-reveal" aria-labelledby="vip-delivery-title">
+          <p class="vip-delivery__label" id="vip-delivery-title">📦 預計配送時間</p>
+          <p class="vip-delivery__fast">最快明日送達</p>
+          <p class="vip-delivery__dates" id="vip-delivery-range">—</p>
+        </section>
+
+        <nav class="footer-nav">
+          <a href="admin-login.html">管理後台</a>
+        </nav>
+      </div>
+    </main>
+    <script src="js/storage.js"></script>
+    <script src="js/mock-data.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.all.min.js"></script>
+    <script src="js/announcement.js"></script>
+    <script src="js/ux.js"></script>
+    <script src="js/vip-landing.js"></script>
+    <script>
+      (function () {
+        VIPUX.initAgentContextBar();
+        if (window.VIPLanding) VIPLanding.init();
+
+        function escHtml(s) {
+          return String(s)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;');
+        }
+
+        var f = document.getElementById('f');
+        var msg = document.getElementById('msg');
+        f.addEventListener('submit', function (e) {
+          e.preventDefault();
+          msg.classList.remove('show', 'msg-ok', 'msg-err');
+          var raw = document.getElementById('code').value.trim();
+          if (!raw) {
+            msg.textContent = '請輸入專屬代理代碼。';
+            msg.className = 'msg msg-err show';
+            return;
+          }
+          VIPUX.showLoader();
+          window.setTimeout(function () {
+            var ag = VIPStore.resolveAgentForLogin(raw);
+            VIPUX.hideLoader();
+            if (!ag) {
+              msg.textContent = '查無此專屬代理代碼，無法登入。請向管理員確認有效代碼。';
+              msg.className = 'msg msg-err show';
+              return;
+            }
+            VIPStore.setAgent({ code: ag.code, name: ag.name });
+            Swal.fire({
+              title: false,
+              html:
+                '<div class="vip-verify-success">' +
+                '<div class="vip-verify-success__check" aria-hidden="true">✔</div>' +
+                '<p class="vip-verify-success__title">已成功綁定專屬代理</p>' +
+                '<p class="vip-verify-success__lead">專屬通道已啟用</p>' +
+                '<p class="vip-verify-success__agent">代理：' +
+                escHtml(ag.name) +
+                '</p></div>',
+              confirmButtonText: '繼續登入',
+              customClass: {
+                popup: 'vip-swal-popup vip-swal-glow-popup',
+                confirmButton: 'vip-swal-confirm',
+              },
+            }).then(function () {
+              location.href = 'login.html';
+            });
+          }, 400);
+        });
+      })();
+    </script>
+  </body>
+</html>

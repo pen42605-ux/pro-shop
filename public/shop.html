@@ -1,0 +1,584 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <script src="js/mall-mobile-guard.js"></script>
+    <title>商城 · VIP</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" />
+    <link rel="stylesheet" href="css/app.css" />
+  </head>
+  <body>
+    <a class="skip" href="#main">主要內容</a>
+    <header class="topbar">
+      <div class="topbar-inner">
+        <a href="shop.html" class="logo" aria-current="page">
+          <span class="logo-mark" aria-hidden="true"></span>
+          <span>VIP BOUTIQUE</span>
+        </a>
+        <div class="nav-actions">
+          <span class="page-sub" id="hi" style="margin: 0; font-size: 0.72rem; max-width: 100px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap"></span>
+          <a class="btn-outline btn-sm" href="orders.html">訂單</a>
+          <a href="checkout.html" class="btn-icon" aria-label="購物車" id="vip-cart-link">
+            <span aria-hidden="true">🛒</span>
+            <span class="badge is-empty" id="vip-cart-count" data-cart-count>0</span>
+          </a>
+          <button type="button" class="btn-outline btn-sm" id="out">登出</button>
+        </div>
+      </div>
+    </header>
+    <main id="main" class="page page--shop">
+      <div class="shell">
+        <h1 class="page-title">精選商品</h1>
+        <p class="page-sub">IQOS · Vape · 配件（資料為 mock，購物車鍵名 <code>cart</code>）。</p>
+        <div id="recent-order-wrap" class="recent-order-wrap" hidden></div>
+        <div id="root">
+          <div class="vip-shop-root-skeleton" aria-hidden="true">
+            <div class="vip-skeleton vip-shop-root-skeleton__cat"></div>
+            <div class="vip-shop-root-skeleton__grid">
+              <div class="vip-shop-root-skeleton__tile">
+                <div class="vip-skeleton vip-shop-root-skeleton__img"></div>
+                <div class="vip-shop-root-skeleton__body">
+                  <div class="vip-skeleton vip-skeleton-line"></div>
+                  <div class="vip-skeleton vip-skeleton-line"></div>
+                  <div class="vip-skeleton vip-skeleton-line"></div>
+                  <div class="vip-skeleton vip-shop-root-skeleton__btn"></div>
+                </div>
+              </div>
+              <div class="vip-shop-root-skeleton__tile">
+                <div class="vip-skeleton vip-shop-root-skeleton__img"></div>
+                <div class="vip-shop-root-skeleton__body">
+                  <div class="vip-skeleton vip-skeleton-line"></div>
+                  <div class="vip-skeleton vip-skeleton-line"></div>
+                  <div class="vip-skeleton vip-skeleton-line"></div>
+                  <div class="vip-skeleton vip-shop-root-skeleton__btn"></div>
+                </div>
+              </div>
+            </div>
+            <div class="vip-skeleton vip-shop-root-skeleton__cat" style="width: 22%"></div>
+            <div class="vip-shop-root-skeleton__grid">
+              <div class="vip-shop-root-skeleton__tile">
+                <div class="vip-skeleton vip-shop-root-skeleton__img"></div>
+                <div class="vip-shop-root-skeleton__body">
+                  <div class="vip-skeleton vip-skeleton-line"></div>
+                  <div class="vip-skeleton vip-skeleton-line"></div>
+                  <div class="vip-skeleton vip-skeleton-line"></div>
+                  <div class="vip-skeleton vip-shop-root-skeleton__btn"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <nav class="footer-nav">
+          <a href="checkout.html">購物車</a>
+          <a href="orders.html">我的訂單</a>
+          <a href="admin-login.html">後台</a>
+        </nav>
+      </div>
+    </main>
+
+    <div id="approve-gate" class="approve-gate" hidden aria-modal="true" role="alertdialog" aria-labelledby="approve-msg">
+      <div class="approve-gate__backdrop" aria-hidden="true"></div>
+      <div class="approve-gate__panel card">
+        <p id="approve-msg" class="approve-gate__msg">請聯絡代理開通</p>
+        <p class="page-sub" style="margin: 0 0 1rem">帳號狀態：<strong id="st-label">pending</strong> · 代理核准後可購物。</p>
+        <button type="button" class="btn-outline" style="width: 100%; margin-bottom: 0.5rem" id="btn-recheck">重新檢查狀態</button>
+        <button type="button" class="btn-gold" style="width: 100%" id="btn-gate-out">返回登入</button>
+      </div>
+    </div>
+
+    <script src="js/storage.js"></script>
+    <script src="js/mock-data.js"></script>
+    <script src="js/announcement.js"></script>
+    <script src="js/products.js"></script>
+    <script src="js/cart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.all.min.js"></script>
+    <script src="js/ux.js"></script>
+    <script>
+      (function () {
+        var agent = VIPStore.getAgent();
+        if (!agent || !agent.user) {
+          location.replace('login.html');
+          return;
+        }
+        VIPUX.bootLoader();
+        VIPUX.initCartBadge();
+        VIPUX.initExitIntentPopup();
+        VIPUX.initAgentContextBar();
+        document.getElementById('hi').textContent = agent.user.displayName;
+
+        document.getElementById('out').addEventListener('click', function () {
+          VIPStore.setAgent({ code: agent.code, name: agent.name });
+          location.href = 'login.html';
+        });
+
+        var rec = VIPStore.getSessionUserRecord();
+        var gate = document.getElementById('approve-gate');
+        var mainEl = document.getElementById('main');
+
+        if (VIPStore.isUserBlocked()) {
+          document.getElementById('approve-msg').textContent = '帳號已封鎖';
+          document.getElementById('st-label').textContent = 'blocked';
+          gate.hidden = false;
+          document.body.classList.add('approve-gate-open');
+          mainEl.setAttribute('inert', '');
+          mainEl.setAttribute('aria-hidden', 'true');
+          document.getElementById('btn-recheck').addEventListener('click', function () {
+            location.reload();
+          });
+          document.getElementById('btn-gate-out').addEventListener('click', function () {
+            VIPStore.setAgent({ code: agent.code, name: agent.name });
+            location.href = 'login.html';
+          });
+          return;
+        }
+
+        if (!VIPStore.isUserApproved()) {
+          document.getElementById('st-label').textContent = rec.status || 'pending';
+          gate.hidden = false;
+          document.body.classList.add('approve-gate-open');
+          mainEl.setAttribute('inert', '');
+          mainEl.setAttribute('aria-hidden', 'true');
+
+          document.getElementById('btn-recheck').addEventListener('click', function () {
+            location.reload();
+          });
+          document.getElementById('btn-gate-out').addEventListener('click', function () {
+            VIPStore.setAgent({ code: agent.code, name: agent.name });
+            location.href = 'login.html';
+          });
+
+          window.addEventListener('vip-storage-change', function (e) {
+            if (e.detail && e.detail.key === 'users' && VIPStore.isUserApproved()) {
+              location.reload();
+            }
+          });
+          return;
+        }
+
+        function escHtml(s) {
+          return String(s)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;');
+        }
+
+        function escAttr(s) {
+          return String(s)
+            .replace(/&/g, '&amp;')
+            .replace(/"/g, '&quot;')
+            .replace(/</g, '&lt;');
+        }
+
+        var recentWrap = document.getElementById('recent-order-wrap');
+        var myOrders = VIPStore.getOrders().filter(function (o) {
+          return o.userId === agent.user.id;
+        });
+        if (recentWrap && myOrders.length) {
+          var ro = myOrders[0];
+          var roItems = (ro.items || [])
+            .map(function (it) {
+              return escHtml(it.name) + ' ×' + it.qty;
+            })
+            .join('、');
+          var roDate = '';
+          try {
+            roDate = new Date(ro.createdAt || '').toLocaleString('zh-TW', {
+              month: 'numeric',
+              day: 'numeric',
+              hour: '2-digit',
+              minute: '2-digit',
+            });
+          } catch (e) {
+            roDate = '';
+          }
+          recentWrap.hidden = false;
+          recentWrap.className = 'recent-order-wrap card';
+          recentWrap.innerHTML =
+            '<div class="recent-order">' +
+            '<div class="recent-order__head">' +
+            '<h2 class="recent-order__title">最近訂單</h2>' +
+            '<a class="btn-outline btn-sm" href="orders.html">查看全部</a>' +
+            '</div>' +
+            '<p class="order-line" style="margin:0.2rem 0 0.15rem"><strong style="font-family:ui-monospace,monospace">' +
+            escHtml(ro.orderId) +
+            '</strong>' +
+            (roDate ? ' · ' + escHtml(roDate) : '') +
+            '</p>' +
+            '<p class="order-line" style="margin:0.15rem 0">' +
+            VIPStore.formatTWD(ro.total) +
+            ' · ' +
+            roItems +
+            '</p>' +
+            '<div class="recent-order__actions">' +
+            '<button type="button" class="btn-gold btn-sm" id="btn-reorder-recent">再買一次</button>' +
+            '</div></div>';
+          document.getElementById('btn-reorder-recent').addEventListener('click', function () {
+            CartAPI.reorderFromOrder(ro);
+            Swal.fire({
+              toast: true,
+              position: 'top-end',
+              icon: 'success',
+              iconColor: '#d4af37',
+              title: '已加入購物車',
+              html: '<p class="vip-swal-add-cart-name">' + escHtml(ro.orderId) + ' 的商品已加入，前往結帳即可下單。</p>',
+              showConfirmButton: false,
+              timer: 2400,
+              timerProgressBar: true,
+              customClass: { popup: 'vip-swal-toast vip-swal-toast--add-cart' },
+            });
+          });
+        }
+
+        ProductCatalog.seedFromMockIfEmpty();
+        var catalog = ProductCatalog.getActiveForShop()
+          .map(function (p) {
+            return ProductCatalog.ensureProductShape(p);
+          })
+          .filter(Boolean);
+
+        var PLACE_IMG =
+          'data:image/svg+xml,' +
+          encodeURIComponent(
+            '<svg xmlns="http://www.w3.org/2000/svg" width="360" height="240"><rect fill="%23111111" width="100%" height="100%"/><text x="50%" y="52%" fill="%23d4af37" font-size="26" font-family="sans-serif" text-anchor="middle" dy=".3em">無圖</text></svg>'
+          );
+
+        var groups = {};
+        catalog.forEach(function (p) {
+          var c = p.category || '未分類';
+          if (!groups[c]) groups[c] = [];
+          groups[c].push(p);
+        });
+        var cats = Object.keys(groups).sort();
+
+        var root = document.getElementById('root');
+        root.innerHTML = '';
+        var staggerIdx = 0;
+        var staggerStep = 0.055;
+        function nextStaggerDelay() {
+          return staggerIdx++ * staggerStep + 's';
+        }
+
+        if (!catalog.length) {
+          root.innerHTML = '<p class="page-sub" style="padding:1rem 0">目前沒有上架商品。</p>';
+        } else {
+          cats.forEach(function (cat) {
+            var gridProducts = groups[cat];
+            var h = document.createElement('div');
+            h.className = 'cat-label cat-label--enter';
+            h.style.animationDelay = nextStaggerDelay();
+            h.textContent = cat;
+            root.appendChild(h);
+            var grid = document.createElement('div');
+            grid.className = 'product-grid';
+            gridProducts.forEach(function (p) {
+              var imgs = p.images && p.images.length ? p.images.slice() : [];
+              if (!imgs.length) imgs = [PLACE_IMG];
+              var art = document.createElement('article');
+              art.className = 'card product-card';
+              art.dataset.pid = String(p.id);
+              var reveal = document.createElement('div');
+              reveal.className = 'product-card__reveal';
+              reveal.style.animationDelay = nextStaggerDelay();
+
+              var dots =
+                imgs.length > 1
+                  ? imgs
+                      .map(function (_, i) {
+                        return (
+                          '<button type="button" class="p-car-dot' +
+                          (i === 0 ? ' is-active' : '') +
+                          '" data-i="' +
+                          i +
+                          '" aria-label="第 ' +
+                          (i + 1) +
+                          ' 張"></button>'
+                        );
+                      })
+                      .join('')
+                  : '';
+
+              var navBtns =
+                imgs.length > 1
+                  ? '<button type="button" class="p-car-prev" aria-label="上一張">‹</button><button type="button" class="p-car-next" aria-label="下一張">›</button>'
+                  : '';
+
+              var optsHtml = '';
+              if (p.options && p.options.length) {
+                p.options.forEach(function (opt, oi) {
+                  optsHtml +=
+                    '<div class="product-option-row"><label class="product-option-label">' +
+                    escHtml(opt.name) +
+                    '</label><select class="input product-opt" data-oi="' +
+                    oi +
+                    '">';
+                  (opt.values || []).forEach(function (v) {
+                    optsHtml +=
+                      '<option value="' +
+                      escAttr(v) +
+                      '">' +
+                      escHtml(v) +
+                      '</option>';
+                  });
+                  optsHtml += '</select></div>';
+                });
+              }
+
+              var descHtml = p.description
+                ? '<p class="page-sub product-desc">' + escHtml(p.description) + '</p>'
+                : '';
+
+              reveal.innerHTML =
+                '<div class="p-carousel">' +
+                navBtns +
+                '<div class="p-car-imgwrap"><img class="p-car-img" src="" alt="" width="360" height="240" loading="lazy" /></div>' +
+                (dots ? '<div class="p-car-dots">' + dots + '</div>' : '') +
+                '</div><div class="p-body"><span class="tag">' +
+                escHtml(p.category) +
+                '</span><h2>' +
+                escHtml(p.name) +
+                '</h2>' +
+                descHtml +
+                optsHtml +
+                '<div class="product-price-block"><div class="product-price-row"><span class="product-price product-price--orig">' +
+                VIPStore.formatTWD(p.original_price) +
+                '</span><span class="product-price product-price--sale">' +
+                '—' +
+                '</span></div><p class="product-stock">剩餘 <strong class="product-stock-val">0</strong> 件</p></div><button type="button" class="btn-gold btn-add-cart" style="width:100%" data-id="' +
+                escAttr(String(p.id)) +
+                '">加入購物車</button></div>';
+
+              art.appendChild(reveal);
+              var imgForCar = reveal.querySelector('.p-car-img');
+              if (imgForCar) imgForCar.src = imgs[0];
+
+              var carIdx = 0;
+              function showCarSlide(i) {
+                carIdx = ((i % imgs.length) + imgs.length) % imgs.length;
+                if (imgForCar) imgForCar.src = imgs[carIdx] || PLACE_IMG;
+                reveal.querySelectorAll('.p-car-dot').forEach(function (d, j) {
+                  d.classList.toggle('is-active', j === carIdx);
+                });
+              }
+              if (imgs.length > 1) {
+                var prev = reveal.querySelector('.p-car-prev');
+                var next = reveal.querySelector('.p-car-next');
+                if (prev)
+                  prev.addEventListener('click', function (ev) {
+                    ev.stopPropagation();
+                    showCarSlide(carIdx - 1);
+                  });
+                if (next)
+                  next.addEventListener('click', function (ev) {
+                    ev.stopPropagation();
+                    showCarSlide(carIdx + 1);
+                  });
+                reveal.querySelectorAll('.p-car-dot').forEach(function (d) {
+                  d.addEventListener('click', function (ev) {
+                    ev.stopPropagation();
+                    var ii = parseInt(d.getAttribute('data-i') || '0', 10);
+                    if (!isNaN(ii)) showCarSlide(ii);
+                  });
+                });
+              }
+
+              art._shopUpdatePrice = function () {
+                var combo = [];
+                reveal.querySelectorAll('select.product-opt').forEach(function (sel) {
+                  combo.push(sel.value);
+                });
+                var v = ProductCatalog.findVariation(p, combo);
+                var saleEl = reveal.querySelector('.product-price--sale');
+                var origEl = reveal.querySelector('.product-price--orig');
+                var stEl = reveal.querySelector('.product-stock-val');
+                var btnAc = reveal.querySelector('.btn-add-cart');
+                if (!v) {
+                  if (saleEl) saleEl.textContent = '—';
+                  if (stEl) stEl.textContent = '0';
+                  if (btnAc) btnAc.disabled = true;
+                  return;
+                }
+                if (saleEl) saleEl.textContent = VIPStore.formatTWD(v.price);
+                if (origEl) origEl.textContent = VIPStore.formatTWD(p.original_price);
+                var left = ProductCatalog.variationStockRemaining(p, combo, CartAPI.getCart());
+                if (stEl) stEl.textContent = String(left);
+                if (btnAc) btnAc.disabled = left <= 0;
+              };
+
+              reveal.querySelectorAll('select.product-opt').forEach(function (sel) {
+                sel.addEventListener('change', function () {
+                  art._shopUpdatePrice();
+                });
+              });
+              art._shopUpdatePrice();
+
+              grid.appendChild(art);
+            });
+            root.appendChild(grid);
+          });
+        }
+
+        window.addEventListener('vip-storage-change', function (e) {
+          if (e.detail && e.detail.key === 'cart') {
+            root.querySelectorAll('article.product-card').forEach(function (art) {
+              if (typeof art._shopUpdatePrice === 'function') art._shopUpdatePrice();
+            });
+          }
+        });
+
+        function triggerCartIconBounce() {
+          var el = document.getElementById('vip-cart-link');
+          if (!el) return;
+          el.classList.remove('cart-icon-bounce');
+          el.offsetWidth;
+          el.classList.add('cart-icon-bounce');
+          function onEnd() {
+            el.removeEventListener('animationend', onEnd);
+            el.classList.remove('cart-icon-bounce');
+          }
+          el.addEventListener('animationend', onEnd);
+        }
+
+        /**
+         * Clone product image → fly to cart (0.6s ease-in-out), scale down + fade at end.
+         * Calls onComplete after cleanup (add item + badge via storage there).
+         */
+        function flyProductImageToCart(imgEl, cartEl, onComplete) {
+          var rect = imgEl.getBoundingClientRect();
+          var cartRect = cartEl.getBoundingClientRect();
+          var cx = rect.left + rect.width / 2;
+          var cy = rect.top + rect.height / 2;
+          var tcx = cartRect.left + cartRect.width / 2;
+          var tcy = cartRect.top + cartRect.height / 2;
+          var dx = tcx - cx;
+          var dy = tcy - cy;
+
+          var clone = imgEl.cloneNode(true);
+          clone.removeAttribute('loading');
+          clone.removeAttribute('sizes');
+          clone.removeAttribute('srcset');
+          clone.alt = '';
+          clone.className = 'vip-fly-to-cart-clone';
+          clone.style.cssText =
+            'position:fixed;left:' +
+            rect.left +
+            'px;top:' +
+            rect.top +
+            'px;width:' +
+            rect.width +
+            'px;height:' +
+            rect.height +
+            'px;object-fit:cover;border-radius:10px;z-index:10000;pointer-events:none;transform-origin:center center;box-shadow:0 14px 44px rgba(0,0,0,0.5);';
+          document.body.appendChild(clone);
+
+          function cleanup() {
+            clone.remove();
+            if (onComplete) onComplete();
+          }
+
+          if (!clone.animate) {
+            cleanup();
+            return;
+          }
+
+          var anim = clone.animate(
+            [
+              { transform: 'translate(0, 0) scale(1)', opacity: 1 },
+              {
+                offset: 0.72,
+                transform: 'translate(' + dx * 0.72 + 'px,' + dy * 0.72 + 'px) scale(0.32)',
+                opacity: 1,
+              },
+              {
+                transform: 'translate(' + dx + 'px,' + dy + 'px) scale(0.1)',
+                opacity: 0,
+              },
+            ],
+            { duration: 600, easing: 'ease-in-out', fill: 'forwards' }
+          );
+          anim.onfinish = cleanup;
+        }
+
+        root.addEventListener('click', function (e) {
+          var b = e.target.closest('button.btn-add-cart');
+          if (!b || b.disabled) return;
+          var id = b.getAttribute('data-id');
+          var raw = ProductCatalog.getById(id);
+          var p = ProductCatalog.ensureProductShape(raw);
+          if (!p || !raw) return;
+
+          var card = b.closest('.product-card');
+          var reveal = card && card.querySelector('.product-card__reveal');
+          var combo = [];
+          if (reveal) {
+            reveal.querySelectorAll('select.product-opt').forEach(function (sel) {
+              combo.push(sel.value);
+            });
+          }
+          var v = ProductCatalog.findVariation(p, combo);
+          if (!v) {
+            Swal.fire({
+              icon: 'warning',
+              title: '無法加入',
+              text: '請選擇有效規格組合。',
+              confirmButtonText: '好的',
+            });
+            return;
+          }
+          if (ProductCatalog.variationStockRemaining(p, combo, CartAPI.getCart()) <= 0) {
+            Swal.fire({
+              icon: 'warning',
+              title: '庫存不足',
+              confirmButtonText: '好的',
+            });
+            return;
+          }
+
+          var imgEl = card && card.querySelector('.p-car-img');
+          var cartEl = document.getElementById('vip-cart-link');
+
+          function afterAdd() {
+            CartAPI.addLine({
+              id: ProductCatalog.makeCartLineId(p.id, combo),
+              product_id: p.id,
+              name: ProductCatalog.displayProductName(p, combo),
+              price: v.price,
+              qty: 1,
+              category: p.category,
+              combo: combo,
+              image: (p.images && p.images[0]) || '',
+            });
+            triggerCartIconBounce();
+            Swal.fire({
+              toast: true,
+              position: 'top-end',
+              icon: 'success',
+              iconColor: '#d4af37',
+              title: '已加入購物車',
+              html:
+                '<p class="vip-swal-add-cart-name">' +
+                escHtml(ProductCatalog.displayProductName(p, combo)) +
+                ' · ' +
+                VIPStore.formatTWD(v.price) +
+                '</p><p class="vip-swal-add-cart-name" style="margin-top:0.35rem;font-size:0.76rem;font-weight:500;color:#7a756c">點右上角購物車可結帳</p>',
+              showConfirmButton: false,
+              timer: 2400,
+              timerProgressBar: true,
+              customClass: { popup: 'vip-swal-toast vip-swal-toast--add-cart' },
+            });
+            b.disabled = false;
+            if (card && typeof card._shopUpdatePrice === 'function') card._shopUpdatePrice();
+          }
+
+          if (!imgEl || !cartEl) {
+            afterAdd();
+            return;
+          }
+
+          b.disabled = true;
+          flyProductImageToCart(imgEl, cartEl, afterAdd);
+        });
+      })();
+    </script>
+  </body>
+</html>

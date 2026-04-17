@@ -1,0 +1,569 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>訂單管理 · VIP Admin</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" />
+    <link rel="stylesheet" href="css/app.css" />
+    <link rel="stylesheet" href="css/admin.css" />
+  </head>
+  <body class="admin-body">
+    <a class="skip" href="#main">主要內容</a>
+    <div class="admin-app">
+      <aside class="admin-sidebar" aria-label="後台選單">
+        <div class="admin-sidebar__brand">
+          <span class="admin-sidebar__brand-mark" aria-hidden="true">◆</span>
+          <span class="admin-sidebar__brand-text">VIP Admin</span>
+        </div>
+        <nav class="admin-sidebar__nav">
+          <a href="admin.html" data-admin-perm="dashboard"><span class="admin-sidebar__icon" aria-hidden="true">▣</span><span>儀表板</span></a>
+          <a href="admin-users.html" data-admin-perm="users"><span class="admin-sidebar__icon" aria-hidden="true">👤</span><span>用戶</span></a>
+          <a href="admin-products.html" data-admin-perm="products"><span class="admin-sidebar__icon" aria-hidden="true">🛍</span><span>商品</span></a>
+          <a href="admin-orders.html" aria-current="page" data-admin-perm="orders"
+            ><span class="admin-sidebar__icon" aria-hidden="true">📦</span><span>訂單</span></a
+          >
+          <a href="admin-admins.html" data-super-only><span class="admin-sidebar__icon" aria-hidden="true">⚙</span><span>管理者</span></a>
+        </nav>
+        <div class="admin-sidebar__foot">
+          <button type="button" class="btn-outline btn-sm" id="out">登出</button>
+        </div>
+      </aside>
+      <main class="admin-content" id="main">
+        <header class="admin-content__head admin-content__head--split">
+          <div>
+            <h1 class="admin-content__title">訂單管理</h1>
+            <p class="admin-content__sub">狀態流程：<strong>pending</strong> → <strong>shipped</strong> → <strong>delivering</strong> → <strong>completed</strong> · 已出貨滿 12 小時可自動進入配送中 · 鍵名 <code>orders</code></p>
+          </div>
+          <div class="admin-content__actions">
+            <button type="button" class="btn-gold btn-sm" id="btn-export-orders">匯出訂單 Excel</button>
+          </div>
+        </header>
+
+        <div class="admin-panel">
+          <h2 class="admin-panel__title">7-11 出貨備註格式</h2>
+          <p class="page-sub" style="margin: 0 0 0.5rem; font-size: 0.82rem">建議複製下方結構至門市系統或內部群組：</p>
+          <pre class="admin-ship-preview" style="margin: 0" id="format-demo">Name:
+Phone:
+Store:
+Items:
+Total:</pre>
+        </div>
+
+        <div class="admin-table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>訂單編號</th>
+                <th>姓名</th>
+                <th>電話</th>
+                <th>門市</th>
+                <th>品項摘要</th>
+                <th>金額</th>
+                <th>狀態</th>
+                <th style="min-width: 200px">操作</th>
+              </tr>
+            </thead>
+            <tbody id="tb"></tbody>
+          </table>
+        </div>
+      </main>
+    </div>
+
+    <div id="order-modal" class="admin-modal" hidden aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+      <div class="admin-modal__backdrop" data-close-modal></div>
+      <div class="admin-modal__panel">
+        <button type="button" class="admin-modal__close" data-close-modal aria-label="關閉">×</button>
+        <h2 id="modal-title" style="margin: 0 0 1rem; font-size: 1.1rem; color: #f5e6a8">訂單詳情</h2>
+        <div id="modal-body"></div>
+      </div>
+    </div>
+
+    <script src="js/storage.js"></script>
+    <script src="js/admin-nav.js"></script>
+    <script src="js/admin-helpers.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.all.min.js"></script>
+    <script src="js/ux.js"></script>
+    <script>
+      (function () {
+        if (!VIPStore.isAdmin()) {
+          location.replace('admin-login.html');
+          return;
+        }
+        if (!VIPStore.hasAdminPermission('orders')) {
+          VIPStore.goToFallbackAdminPage();
+          return;
+        }
+        VIPStore.migrateOrdersShippingFields();
+
+        document.getElementById('out').addEventListener('click', function () {
+          VIPStore.adminLogout();
+          location.href = 'admin-login.html';
+        });
+
+        var tb = document.getElementById('tb');
+        var modal = document.getElementById('order-modal');
+        var modalBody = document.getElementById('modal-body');
+        var currentOid = null;
+
+        function esc(s) {
+          return AdminHelpers.esc(s);
+        }
+        function escAttr(s) {
+          return AdminHelpers.escAttr(s);
+        }
+
+        function badge(st) {
+          var k = VIPStore.normalizeOrderStatus({ shipping_status: st, status: st });
+          var cls = 'ad-badge--pending';
+          if (k === 'shipped') cls = 'ad-badge--shipped';
+          if (k === 'delivering') cls = 'ad-badge--delivering';
+          if (k === 'completed') cls = 'ad-badge--completed';
+          return '<span class="ad-badge ' + cls + '">' + esc(VIPStore.adminOrderStatusLabel(k)) + '</span>';
+        }
+
+        function itemsPreview(o) {
+          return (o.items || [])
+            .map(function (it) {
+              return esc(it.name || '') + ' ×' + (it.qty || 0);
+            })
+            .join('、');
+          }
+
+        function findOrder(id) {
+          return VIPStore.getOrders().find(function (x) {
+            return x.orderId === id;
+          });
+        }
+
+        function copyText(t) {
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            return navigator.clipboard.writeText(t);
+          }
+          return Promise.reject();
+        }
+
+        function openModal(o) {
+          currentOid = o.orderId;
+          var block = AdminHelpers.formatShippingBlock(o);
+          var rows = (o.items || [])
+            .map(function (it) {
+              return (
+                '<tr><td>' +
+                esc(it.name) +
+                '</td><td>' +
+                (it.qty || 0) +
+                '</td><td>' +
+                esc(VIPStore.formatTWD(it.price)) +
+                '</td><td>' +
+                esc(VIPStore.formatTWD((Number(it.price) || 0) * (Number(it.qty) || 0))) +
+                '</td></tr>'
+              );
+            })
+            .join('');
+          modalBody.innerHTML =
+            '<div class="admin-panel" style="margin:0;padding:0.85rem;border:none;box-shadow:none;background:transparent">' +
+            '<p style="margin:0 0 0.5rem;font-size:0.72rem;color:#8a8680">客戶</p>' +
+            '<p style="margin:0.15rem 0"><strong>' +
+            esc(o.name) +
+            '</strong> · ' +
+            esc(o.phone) +
+            '</p>' +
+            '<p style="margin:0.35rem 0 0.85rem">' +
+            esc(o.store_name) +
+            '</p>' +
+            '<div class="table-wrap" style="overflow:auto;border-radius:10px;border:1px solid rgba(255,255,255,0.08)">' +
+            '<table style="font-size:0.8rem;width:100%"><thead><tr><th>品名</th><th>數量</th><th>單價</th><th>小計</th></tr></thead><tbody>' +
+            rows +
+            '</tbody></table></div>' +
+            (function () {
+              var m = VIPStore.getOrderDisplayTotals(o);
+              return (
+                '<div class="admin-modal-totals" style="margin:0.85rem 0 0;text-align:right;font-size:0.82rem;line-height:1.65">' +
+                '<div><span style="color:#8a8680">商品小計</span> ' +
+                esc(VIPStore.formatTWD(m.subtotal)) +
+                '</div>' +
+                '<div><span style="color:#8a8680">運費</span> ' +
+                esc(VIPStore.formatTWD(m.shipping_fee)) +
+                '</div>' +
+                '<div class="admin-modal-totals__grand" style="margin-top:0.35rem;font-weight:800;font-size:1rem;color:#f5e6a8">' +
+                '<span style="color:#9e9a94;font-weight:600;font-size:0.78rem;margin-right:0.35rem">總計</span>' +
+                esc(VIPStore.formatTWD(m.total)) +
+                '</div></div>'
+              );
+            })() +
+            '</div>' +
+            '<p style="margin:0.75rem 0 0.35rem;font-size:0.72rem;color:#8a8680">出貨備註（7-11 / 內部）</p>' +
+            '<pre class="admin-ship-preview" id="modal-ship-text">' +
+            esc(block) +
+            '</pre>' +
+            '<div class="admin-actions" style="margin-top:0.85rem">' +
+            '<button type="button" class="btn-gold btn-sm" id="btn-modal-copy">複製全部出貨資訊</button>' +
+            '</div>';
+          modal.hidden = false;
+          modal.classList.add('is-open');
+          modal.setAttribute('aria-hidden', 'false');
+
+          document.getElementById('btn-modal-copy').addEventListener('click', function () {
+            copyText(block).then(
+              function () {
+                Swal.fire({ icon: 'success', title: '已複製', toast: true, position: 'top-end', timer: 1600, showConfirmButton: false });
+              },
+              function () {
+                Swal.fire({ icon: 'info', title: '請手動複製', html: '<pre style="text-align:left;font-size:0.75rem">' + esc(block) + '</pre>' });
+              }
+            );
+          });
+        }
+
+        function closeModal() {
+          modal.hidden = true;
+          modal.classList.remove('is-open');
+          modal.setAttribute('aria-hidden', 'true');
+          currentOid = null;
+        }
+
+        modal.querySelectorAll('[data-close-modal]').forEach(function (el) {
+          el.addEventListener('click', closeModal);
+        });
+
+        function render() {
+          tb.innerHTML = '';
+          var orders = VIPStore.getOrders();
+          if (!orders.length) {
+            tb.innerHTML = '<tr><td colspan="8" class="page-sub" style="padding:1.2rem;text-align:center">尚無訂單</td></tr>';
+            return;
+          }
+          orders.forEach(function (o) {
+            var st = VIPStore.normalizeOrderStatus(o);
+            var oid = escAttr(o.orderId);
+            var money = VIPStore.getOrderDisplayTotals(o);
+            var tr = document.createElement('tr');
+            tr.innerHTML =
+              '<td class="mono">' +
+              esc(String(o.orderId)) +
+              '</td><td>' +
+              esc(o.name) +
+              '</td><td class="mono">' +
+              esc(o.phone) +
+              '</td><td>' +
+              esc(o.store_name) +
+              '</td><td style="max-width:180px;font-size:0.78rem">' +
+              itemsPreview(o) +
+              '</td><td class="admin-order-money-cell">' +
+              '<div class="admin-order-money">' +
+              '<div><span class="admin-order-money__k">商品</span> ' +
+              esc(VIPStore.formatTWD(money.subtotal)) +
+              '</div>' +
+              '<div><span class="admin-order-money__k">運費</span> ' +
+              esc(VIPStore.formatTWD(money.shipping_fee)) +
+              '</div>' +
+              '<div class="admin-order-money__total">' +
+              esc(VIPStore.formatTWD(money.total)) +
+              '</div></div></td><td>' +
+              badge(st) +
+              '</td><td><div class="admin-actions">' +
+              '<button type="button" class="btn-outline btn-sm btn-view" data-id="' +
+              oid +
+              '">詳情</button>' +
+              '<button type="button" class="btn-outline btn-sm btn-copy" data-id="' +
+              oid +
+              '">複製</button>' +
+              (st === 'pending'
+                ? '<button type="button" class="btn-gold btn-sm btn-ship" data-id="' + oid + '">標記已出貨</button>'
+                : '') +
+              (st === 'shipped'
+                ? '<button type="button" class="btn-gold btn-sm btn-deliver" data-id="' + oid + '">標記配送中</button>'
+                : '') +
+              (st === 'delivering'
+                ? '<button type="button" class="btn-gold btn-sm btn-done" data-id="' + oid + '">標記已完成</button>'
+                : '') +
+              '</div></td>';
+            tb.appendChild(tr);
+          });
+        }
+
+        function persistStatus(id, next, successTitle) {
+          var all = VIPStore.getOrders();
+          var x = all.find(function (z) {
+            return z.orderId === id;
+          });
+          if (!x) return;
+          VIPStore.applyOrderStatusWithTimestamps(x, next);
+          VIPStore.saveOrders(all);
+          Swal.fire({
+            icon: 'success',
+            title: successTitle || '已更新',
+            toast: true,
+            position: 'top-end',
+            timer: 1800,
+            showConfirmButton: false,
+          });
+          render();
+          if (currentOid === id) closeModal();
+        }
+
+        tb.addEventListener('click', function (e) {
+          var view = e.target.closest('.btn-view');
+          var copy = e.target.closest('.btn-copy');
+          var ship = e.target.closest('.btn-ship');
+          var deliver = e.target.closest('.btn-deliver');
+          var done = e.target.closest('.btn-done');
+          var id =
+            (view || copy || ship || deliver || done) &&
+            (view || copy || ship || deliver || done).getAttribute('data-id');
+          if (!id) return;
+          var o = findOrder(id);
+          if (!o) return;
+
+          if (view) {
+            openModal(o);
+            return;
+          }
+
+          if (copy) {
+            var t = AdminHelpers.formatShippingBlock(o);
+            copyText(t).then(
+              function () {
+                Swal.fire({ icon: 'success', title: '已複製出貨資訊', toast: true, position: 'top-end', timer: 1800, showConfirmButton: false });
+              },
+              function () {
+                prompt('請手動複製：', t);
+              }
+            );
+            return;
+          }
+
+          if (ship) {
+            Swal.fire({
+              title: '標記為已出貨？',
+              text: '將寫入出貨時間，客戶端會顯示物流進度。',
+              icon: 'question',
+              showCancelButton: true,
+              confirmButtonText: '確認',
+              cancelButtonText: '取消',
+              customClass: { popup: 'vip-swal-popup' },
+            }).then(function (res) {
+              if (!res.isConfirmed) return;
+              persistStatus(id, 'shipped', '已標記為已出貨');
+            });
+            return;
+          }
+
+          if (deliver) {
+            Swal.fire({
+              title: '標記為配送中？',
+              text: '將寫入配送時間。',
+              icon: 'question',
+              showCancelButton: true,
+              confirmButtonText: '確認',
+              cancelButtonText: '取消',
+              customClass: { popup: 'vip-swal-popup' },
+            }).then(function (res) {
+              if (!res.isConfirmed) return;
+              persistStatus(id, 'delivering', '已標記為配送中');
+            });
+            return;
+          }
+
+          if (done) {
+            Swal.fire({
+              title: '標記為已完成？',
+              text: '將寫入完成時間。',
+              icon: 'question',
+              showCancelButton: true,
+              confirmButtonText: '確認',
+              cancelButtonText: '取消',
+              customClass: { popup: 'vip-swal-popup' },
+            }).then(function (res) {
+              if (!res.isConfirmed) return;
+              persistStatus(id, 'completed', '已標記為已完成');
+            });
+          }
+        });
+
+        document.addEventListener('keydown', function (e) {
+          if (e.key === 'Escape' && !modal.hidden) closeModal();
+        });
+
+        function csvEscape(cell) {
+          var s = cell == null ? '' : String(cell);
+          if (/[",\r\n]/.test(s)) {
+            return '"' + s.replace(/"/g, '""') + '"';
+          }
+          return s;
+        }
+
+        function formatItemsExport(items) {
+          return (items || [])
+            .map(function (it) {
+              var name = String(it.name || '').trim() || '品項';
+              var qty = Number(it.qty) || 0;
+              var combo = it.combo;
+              if (Array.isArray(combo) && combo.length) {
+                return name + ' x' + qty + ' (' + combo.join(', ') + ')';
+              }
+              return name + ' x' + qty;
+            })
+            .join(', ');
+        }
+
+        function filterOrdersForExport(orders, mode) {
+          return orders.filter(function (o) {
+            var st = VIPStore.normalizeOrderStatus(o);
+            if (mode === 'all') return true;
+            if (mode === 'pending') return st === 'pending';
+            if (mode === 'shipped') return st === 'shipped' || st === 'delivering' || st === 'completed';
+            return true;
+          });
+        }
+
+        function buildOrdersCsv(rows) {
+          var header = [
+            'Order ID',
+            'Name',
+            'Phone',
+            'Store (7-11)',
+            'Items',
+            'Subtotal',
+            'Shipping Fee',
+            'Total Price',
+            'Status',
+            'Created Time',
+          ];
+          var lines = [header.map(csvEscape).join(',')];
+          rows.forEach(function (o) {
+            var st = VIPStore.normalizeOrderStatus(o);
+            var statusLabel = VIPStore.adminOrderStatusLabel(st);
+            var m = VIPStore.getOrderDisplayTotals(o);
+            var created = '';
+            try {
+              created = o.createdAt
+                ? new Date(o.createdAt).toLocaleString('zh-TW', {
+                    year: 'numeric',
+                    month: '2-digit',
+                    day: '2-digit',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    second: '2-digit',
+                    hour12: false,
+                  })
+                : '';
+            } catch (e) {
+              created = String(o.createdAt || '');
+            }
+            lines.push(
+              [
+                o.orderId,
+                o.name,
+                o.phone,
+                o.store_name,
+                formatItemsExport(o.items),
+                m.subtotal,
+                m.shipping_fee,
+                m.total,
+                statusLabel,
+                created,
+              ]
+                .map(csvEscape)
+                .join(',')
+            );
+          });
+          return lines.join('\r\n');
+        }
+
+        function downloadUtf8Csv(filename, text) {
+          var blob = new Blob(['\ufeff' + text], { type: 'text/csv;charset=utf-8' });
+          var url = URL.createObjectURL(blob);
+          var a = document.createElement('a');
+          a.href = url;
+          a.download = filename;
+          a.rel = 'noopener';
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          window.setTimeout(function () {
+            URL.revokeObjectURL(url);
+          }, 400);
+        }
+
+        function exportFilename() {
+          var d = new Date();
+          var y = d.getFullYear();
+          var m = (d.getMonth() + 1 < 10 ? '0' : '') + (d.getMonth() + 1);
+          var day = (d.getDate() < 10 ? '0' : '') + d.getDate();
+          return 'orders_' + y + m + day + '.csv';
+        }
+
+        document.getElementById('btn-export-orders').addEventListener('click', function () {
+          Swal.fire({
+            title: '匯出訂單 CSV',
+            html:
+              '<p class="page-sub" style="margin:0 0 0.85rem;text-align:left;font-size:0.88rem;line-height:1.45">選擇匯出範圍（UTF-8，可用 Excel 開啟）：</p>' +
+              '<label style="display:flex;gap:0.55rem;margin:0.4rem 0;cursor:pointer;align-items:flex-start"><input type="radio" name="exp-scope" value="all" checked style="margin-top:0.2rem"> <span>全部訂單</span></label>' +
+              '<label style="display:flex;gap:0.55rem;margin:0.4rem 0;cursor:pointer;align-items:flex-start"><input type="radio" name="exp-scope" value="pending" style="margin-top:0.2rem"> <span>僅待處理</span></label>' +
+              '<label style="display:flex;gap:0.55rem;margin:0.4rem 0;cursor:pointer;align-items:flex-start"><input type="radio" name="exp-scope" value="shipped" style="margin-top:0.2rem"> <span>僅已出貨（含已完成）</span></label>',
+            showCancelButton: true,
+            confirmButtonText: '匯出',
+            cancelButtonText: '取消',
+            focusConfirm: false,
+            customClass: { popup: 'vip-swal-popup' },
+            preConfirm: function () {
+              var box = Swal.getHtmlContainer();
+              var r = box && box.querySelector('input[name="exp-scope"]:checked');
+              return r ? r.value : 'all';
+            },
+          }).then(function (res) {
+            if (!res.isConfirmed) return;
+            var mode = res.value || 'all';
+            var all = VIPStore.getOrders();
+            var filtered = filterOrdersForExport(all, mode);
+            if (!filtered.length) {
+              Swal.fire({
+                icon: 'info',
+                title: '無資料可匯出',
+                text: '此範圍內沒有訂單。',
+                confirmButtonText: '好的',
+                customClass: { popup: 'vip-swal-popup' },
+              });
+              return;
+            }
+            VIPUX.showLoader();
+            window.setTimeout(function () {
+              try {
+                var fname = exportFilename();
+                var csv = buildOrdersCsv(filtered);
+                downloadUtf8Csv(fname, csv);
+                VIPUX.hideLoader();
+                Swal.fire({
+                  icon: 'success',
+                  title: '匯出成功',
+                  text: '已下載 ' + filtered.length + ' 筆訂單（' + fname + '）',
+                  confirmButtonText: '好的',
+                  customClass: { popup: 'vip-swal-popup' },
+                });
+              } catch (err) {
+                VIPUX.hideLoader();
+                Swal.fire({
+                  icon: 'error',
+                  title: '匯出失敗',
+                  text: err && err.message ? String(err.message) : '請稍後再試',
+                  confirmButtonText: '好的',
+                  customClass: { popup: 'vip-swal-popup' },
+                });
+              }
+            }, 120);
+          });
+        });
+
+        render();
+        window.addEventListener('vip-storage-change', function (e) {
+          if (e.detail && e.detail.key === 'orders') render();
+        });
+        window.setInterval(function () {
+          VIPStore.migrateOrdersShippingFields();
+        }, 60 * 1000);
+      })();
+    </script>
+  </body>
+</html>

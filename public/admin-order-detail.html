@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>訂單詳情 · VIP ADMIN</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" />
+    <link rel="stylesheet" href="css/app.css" />
+    <link rel="stylesheet" href="css/admin.css" />
+  </head>
+  <body>
+    <a class="skip" href="#main">主要內容</a>
+    <header class="topbar">
+      <div class="topbar-inner">
+        <a href="admin.html" class="logo">
+          <span class="logo-mark" aria-hidden="true"></span>
+          <span>ADMIN</span>
+        </a>
+        <button type="button" class="btn-outline btn-sm" id="out">登出</button>
+      </div>
+    </header>
+    <div class="admin-layout">
+      <aside class="admin-side">
+        <nav>
+          <a href="admin.html" data-admin-perm="dashboard">儀表板</a>
+          <a href="admin-users.html" data-admin-perm="users">用戶</a>
+          <a href="admin-products.html" data-admin-perm="products">商品</a>
+          <a href="admin-orders.html" data-admin-perm="orders">訂單</a>
+          <a href="admin-admins.html" data-super-only>管理者</a>
+          <a href="index.html">前台</a>
+        </nav>
+      </aside>
+      <main class="admin-main" id="main">
+        <p class="page-sub" style="margin-bottom: 0.75rem">
+          <a class="btn-outline btn-sm" href="admin-orders.html" style="display: inline-flex">← 訂單列表</a>
+        </p>
+        <div id="detail"></div>
+      </main>
+    </div>
+    <script src="js/storage.js"></script>
+    <script src="js/admin-nav.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.all.min.js"></script>
+    <script src="js/ux.js"></script>
+    <script>
+      (function () {
+        if (!VIPStore.isAdmin()) {
+          location.replace('admin-login.html');
+          return;
+        }
+        if (!VIPStore.hasAdminPermission('orders')) {
+          VIPStore.goToFallbackAdminPage();
+          return;
+        }
+        document.getElementById('out').addEventListener('click', function () {
+          VIPStore.adminLogout();
+          location.href = 'admin-login.html';
+        });
+
+        VIPStore.migrateOrdersShippingFields();
+
+        var orderId = new URLSearchParams(location.search).get('order');
+        if (!orderId) {
+          location.replace('admin-orders.html');
+          return;
+        }
+
+        var root = document.getElementById('detail');
+
+        function esc(s) {
+          return String(s)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;');
+        }
+
+        function escAttr(s) {
+          return String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;');
+        }
+
+        function formatWhen(iso) {
+          if (!iso) return '—';
+          try {
+            return new Date(iso).toLocaleString('zh-TW', {
+              dateStyle: 'medium',
+              timeStyle: 'short',
+            });
+          } catch (e) {
+            return '—';
+          }
+        }
+
+        var SHIP_KEYS = ['pending', 'shipped', 'delivering', 'completed'];
+        var SHIP_LABELS = {
+          pending: '待處理',
+          shipped: '已出貨',
+          delivering: '配送中',
+          completed: '已完成',
+        };
+
+        function findOrder() {
+          return VIPStore.getOrders().find(function (x) {
+            return x.orderId === orderId;
+          });
+        }
+
+        function setShippingStatus(next) {
+          if (SHIP_KEYS.indexOf(next) === -1) return;
+          var all = VIPStore.getOrders();
+          var idx = all.findIndex(function (x) {
+            return x.orderId === orderId;
+          });
+          if (idx === -1) return;
+          var o = all[idx];
+          var cur = VIPStore.normalizeOrderStatus(o);
+          if (cur === next) return;
+          Swal.fire({
+            title: '確認變更狀態？',
+            html: '<p style="margin:0;line-height:1.5">將狀態設為：<strong>' + esc(SHIP_LABELS[next] || next) + '</strong></p>',
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonText: '確認',
+            cancelButtonText: '取消',
+            customClass: { popup: 'vip-swal-popup' },
+          }).then(function (res) {
+            if (!res.isConfirmed) return;
+            var allFresh = VIPStore.getOrders();
+            var ix = allFresh.findIndex(function (x) {
+              return x.orderId === orderId;
+            });
+            if (ix === -1) return;
+            VIPStore.applyOrderStatusWithTimestamps(allFresh[ix], next);
+            VIPStore.saveOrders(allFresh);
+            Swal.fire({
+              icon: 'success',
+              title: '出貨狀態已更新',
+              text: SHIP_LABELS[next] || next,
+              toast: true,
+              position: 'top-end',
+              showConfirmButton: false,
+              timer: 2000,
+              timerProgressBar: true,
+            });
+            render();
+          });
+        }
+
+        function render() {
+          var o = findOrder();
+          if (!o) {
+            root.innerHTML =
+              '<div class="card admin-order-detail-empty" style="padding: 1.5rem">' +
+              '<p class="page-sub" style="margin: 0 0 1rem">找不到此訂單（可能已刪除或編號錯誤）。</p>' +
+              '<a class="btn-gold btn-sm" href="admin-orders.html">返回訂單列表</a></div>';
+            document.title = '訂單不存在 · VIP ADMIN';
+            return;
+          }
+
+          var ship = VIPStore.normalizeOrderStatus(o);
+          var shipLabel = VIPStore.adminOrderStatusLabel(ship);
+          var money = VIPStore.getOrderDisplayTotals(o);
+          var phoneRaw = o.phone || '';
+          var phoneDigits = String(phoneRaw).replace(/\D/g, '');
+          var phoneHtml =
+            phoneDigits.length > 0
+              ? '<a href="tel:' + escAttr(phoneDigits) + '">' + esc(phoneRaw) + '</a>'
+              : esc(phoneRaw || '—');
+          var items = o.items || [];
+          var rows = items
+            .map(function (it) {
+              var qty = Number(it.qty) || 0;
+              var price = Number(it.price) || 0;
+              var line = price * qty;
+              return (
+                '<tr><td>' +
+                esc(it.name || '—') +
+                '</td><td class="admin-order-detail-table__num">' +
+                qty +
+                '</td><td class="admin-order-detail-table__num">' +
+                VIPStore.formatTWD(price) +
+                '</td><td class="admin-order-detail-table__num">' +
+                VIPStore.formatTWD(line) +
+                '</td></tr>'
+              );
+            })
+            .join('');
+
+          if (!rows) {
+            rows = '<tr><td colspan="4" class="page-sub" style="padding:0.75rem">（無商品列）</td></tr>';
+          }
+
+          var shipBtns = SHIP_KEYS.map(function (key) {
+            var isCurrent = ship === key;
+            return (
+              '<button type="button" class="btn-outline btn-sm admin-ship-btn' +
+              (isCurrent ? ' admin-ship-btn--current' : '') +
+              '" data-ship="' +
+              escAttr(key) +
+              '"' +
+              (isCurrent ? ' aria-current="true"' : '') +
+              '>' +
+              esc(SHIP_LABELS[key]) +
+              '</button>'
+            );
+          }).join('');
+
+          root.innerHTML =
+            '<h1 class="page-title" style="margin-bottom: 0.35rem">訂單詳情</h1>' +
+            '<p class="page-sub" style="margin-bottom: 1.25rem"><span style="font-family:ui-monospace,monospace;font-weight:800;color:var(--gold-light)">' +
+            esc(o.orderId) +
+            '</span> · 目前：<span class="ad-badge ad-badge--' +
+            (ship === 'completed'
+              ? 'completed'
+              : ship === 'delivering'
+                ? 'delivering'
+                : ship === 'shipped'
+                  ? 'shipped'
+                  : 'pending') +
+            '">' +
+            esc(shipLabel) +
+            '</span></p>' +
+            '<section class="card admin-order-detail-card" style="padding: 1.15rem 1.2rem; margin-bottom: 1rem">' +
+            '<h2 class="admin-order-detail-heading">客戶資料</h2>' +
+            '<dl class="admin-order-detail-dl">' +
+            '<div><dt>姓名</dt><dd>' +
+            esc(o.name || '—') +
+            '</dd></div>' +
+            '<div><dt>電話</dt><dd>' + phoneHtml + '</dd></div>' +
+            '<div><dt>取貨門市</dt><dd>' +
+            esc(o.store_name || '—') +
+            '</dd></div>' +
+            '<div><dt>付款方式</dt><dd>' +
+            esc(o.payment || 'COD') +
+            '</dd></div>' +
+            '<div><dt>會員編號</dt><dd style="font-family:ui-monospace,monospace">' +
+            esc(o.userId || '—') +
+            '</dd></div>' +
+            '<div><dt>建立時間</dt><dd>' +
+            esc(formatWhen(o.createdAt)) +
+            '</dd></div>' +
+            '</dl></section>' +
+            '<section class="card admin-order-detail-card" style="padding: 1.15rem 1.2rem; margin-bottom: 1rem">' +
+            '<h2 class="admin-order-detail-heading">商品明細</h2>' +
+            '<div class="table-wrap admin-order-detail-wrap">' +
+            '<table class="admin-order-detail-table">' +
+            '<thead><tr><th>品名</th><th class="admin-order-detail-table__num">數量</th><th class="admin-order-detail-table__num">單價</th><th class="admin-order-detail-table__num">小計</th></tr></thead>' +
+            '<tbody>' +
+            rows +
+            '</tbody>' +
+            '<tfoot>' +
+            '<tr><th colspan="3" style="text-align:right;font-weight:600">商品小計</th><th class="admin-order-detail-table__num">' +
+            VIPStore.formatTWD(money.subtotal) +
+            '</th></tr>' +
+            '<tr><th colspan="3" style="text-align:right;font-weight:600">運費</th><th class="admin-order-detail-table__num">' +
+            VIPStore.formatTWD(money.shipping_fee) +
+            '</th></tr>' +
+            '<tr class="admin-order-detail-grand"><th colspan="3" style="text-align:right">總計</th><th class="admin-order-detail-table__num vip-money-total">' +
+            VIPStore.formatTWD(money.total) +
+            '</th></tr></tfoot>' +
+            '</table></div></section>' +
+            '<section class="card admin-order-detail-card" style="padding: 1.15rem 1.2rem">' +
+            '<h2 class="admin-order-detail-heading">出貨／配送狀態</h2>' +
+            '<p class="page-sub" style="margin: 0 0 0.85rem; font-size: 0.8rem">點選按鈕即可更新狀態（會寫入 <code>orders</code> 並同步前台訂單顯示）。</p>' +
+            '<div class="admin-ship-bar" role="group" aria-label="配送狀態">' +
+            shipBtns +
+            '</div></section>';
+
+          document.title = o.orderId + ' · 訂單詳情 · VIP ADMIN';
+        }
+
+        root.addEventListener('click', function (e) {
+          var btn = e.target.closest('.admin-ship-btn[data-ship]');
+          if (!btn) return;
+          var next = btn.getAttribute('data-ship');
+          if (!next) return;
+          var o = findOrder();
+          if (!o) return;
+          var cur = VIPStore.normalizeOrderStatus(o);
+          if (cur === next) return;
+          setShippingStatus(next);
+        });
+
+        render();
+        window.addEventListener('vip-storage-change', function (e) {
+          if (e.detail && e.detail.key === 'orders') render();
+        });
+        window.setInterval(function () {
+          VIPStore.migrateOrdersShippingFields();
+        }, 60 * 1000);
+      })();
+    </script>
+  </body>
+</html>
