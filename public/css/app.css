@@ -3302,34 +3302,44 @@ body.is-agent-verified .vip-home2-feat__icon {
   text-underline-offset: 3px;
 }
 
-/* 口味／規格選擇彈窗 */
+/* 口味／規格選擇彈窗 — SMOKE SHOP 風格 */
 .vip-picker-popup {
-  max-width: min(94vw, 420px) !important;
-  padding: 1.1rem 1.05rem 1.25rem !important;
-  border: 1px solid rgba(212, 175, 55, 0.38) !important;
-  background: linear-gradient(165deg, rgba(22, 22, 26, 0.98) 0%, rgba(8, 8, 10, 0.99) 100%) !important;
+  max-width: min(94vw, 440px) !important;
+  padding: 1.5rem 1.15rem 1.15rem !important;
+  border: 1px solid rgba(212, 175, 55, 0.55) !important;
+  background:
+    radial-gradient(ellipse at top, rgba(212, 175, 55, 0.08), transparent 55%),
+    linear-gradient(165deg, #151214 0%, #0a0809 70%, #050404 100%) !important;
   box-shadow:
-    0 30px 80px rgba(0, 0, 0, 0.7),
-    0 0 80px rgba(212, 175, 55, 0.22) !important;
-  border-radius: 20px !important;
+    0 30px 80px rgba(0, 0, 0, 0.75),
+    0 0 60px rgba(212, 175, 55, 0.18),
+    inset 0 0 0 1px rgba(212, 175, 55, 0.08) !important;
+  border-radius: 22px !important;
 }
 .vip-picker-popup .swal2-html-container {
   padding: 0 !important;
   margin: 0 !important;
   text-align: left !important;
+  overflow-x: hidden !important;
 }
 .vip-picker-popup .swal2-actions {
-  margin-top: 1rem !important;
+  margin-top: 1.1rem !important;
   gap: 0.55rem !important;
+  width: 100% !important;
+  display: flex !important;
+  flex-wrap: nowrap !important;
 }
 .vip-picker-popup .swal2-confirm {
-  flex: 1;
+  flex: 1 1 auto !important;
   background: linear-gradient(180deg, var(--gold-light) 0%, var(--gold) 50%, var(--gold-deep) 100%) !important;
   color: #1a1406 !important;
-  border-radius: 12px !important;
-  padding: 0.75rem 1rem !important;
+  border-radius: 14px !important;
+  padding: 0.95rem 1rem !important;
   font-weight: 800 !important;
-  box-shadow: 0 8px 28px rgba(212, 175, 55, 0.35) !important;
+  font-size: 0.98rem !important;
+  letter-spacing: 0.04em !important;
+  box-shadow: 0 10px 28px rgba(212, 175, 55, 0.35) !important;
+  border: 1px solid rgba(212, 175, 55, 0.6) !important;
 }
 .vip-picker-popup .swal2-confirm[disabled] {
   opacity: 0.42 !important;
@@ -3337,152 +3347,145 @@ body.is-agent-verified .vip-home2-feat__icon {
   box-shadow: none !important;
 }
 .vip-picker-popup .swal2-cancel {
-  background: transparent !important;
-  color: #b6afa0 !important;
-  border: 1px solid rgba(255, 255, 255, 0.12) !important;
-  border-radius: 12px !important;
-  padding: 0.75rem 1rem !important;
-  font-weight: 600 !important;
+  flex: 0 0 52px !important;
+  width: 52px !important;
+  background: rgba(255, 255, 255, 0.03) !important;
+  color: #e8e3d6 !important;
+  border: 1px solid rgba(212, 175, 55, 0.35) !important;
+  border-radius: 14px !important;
+  padding: 0 !important;
+  font-size: 1.15rem !important;
+  font-weight: 700 !important;
+  min-width: 52px !important;
 }
 
-.vip-picker-cover {
-  width: 100%;
-  aspect-ratio: 16 / 10;
-  overflow: hidden;
-  border-radius: 14px;
-  margin-bottom: 0.85rem;
-  border: 1px solid rgba(212, 175, 55, 0.22);
-  background: #0a0a0c;
-}
-.vip-picker-cover img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  display: block;
-}
 .vip-picker-name {
-  font-size: 1.08rem;
-  font-weight: 800;
-  color: #fff;
-  margin-bottom: 0.25rem;
+  font-size: 1.02rem;
+  font-weight: 700;
+  color: #eadfba;
+  line-height: 1.45;
+  text-align: center;
+  padding: 0 0.5rem;
+  margin: 0 0 1rem;
   letter-spacing: 0.01em;
 }
-.vip-picker-desc {
+
+.vip-picker-cards {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.7rem;
+  margin-bottom: 1rem;
+}
+.vip-picker-card {
+  padding: 0.7rem 0.5rem;
+  border-radius: 18px;
+  border: 1px solid rgba(212, 175, 55, 0.45);
+  background: rgba(0, 0, 0, 0.35);
+  text-align: center;
+  box-shadow: inset 0 0 0 1px rgba(212, 175, 55, 0.06);
+}
+.vip-picker-card__label {
   font-size: 0.78rem;
-  color: #a69f90;
-  margin-bottom: 0.85rem;
-  line-height: 1.5;
+  color: #c9b873;
+  margin-bottom: 0.35rem;
+  letter-spacing: 0.08em;
 }
+.vip-picker-card__val {
+  font-size: 1.2rem;
+  font-weight: 800;
+  color: #fff;
+  letter-spacing: 0.02em;
+}
+
 .vip-picker-group {
-  margin-bottom: 0.9rem;
-}
-.vip-picker-label {
-  font-size: 0.74rem;
-  font-weight: 700;
-  color: var(--gold-light);
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  margin-bottom: 0.45rem;
+  margin-bottom: 0.85rem;
 }
 .vip-picker-chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.4rem;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.55rem 0.6rem;
 }
 .vip-picker-chip {
   position: relative;
   display: inline-flex;
   align-items: center;
-  gap: 0.3rem;
-  padding: 0.55rem 0.95rem;
+  justify-content: center;
+  padding: 0.55rem 0.35rem;
   min-height: 42px;
+  width: 100%;
   border-radius: 999px;
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(212, 175, 55, 0.3);
+  background: rgba(255, 255, 255, 0.02);
   color: #e8e3d6;
   font-size: 0.88rem;
   font-weight: 600;
   cursor: pointer;
-  transition: border-color 0.2s var(--ease), background 0.2s var(--ease), transform 0.15s var(--ease);
+  transition: border-color 0.2s var(--ease), background 0.2s var(--ease),
+    transform 0.15s var(--ease), box-shadow 0.2s var(--ease);
+  overflow: visible;
+}
+.vip-picker-chip__txt {
+  display: inline-block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .vip-picker-chip:hover:not(:disabled) {
-  border-color: rgba(212, 175, 55, 0.5);
+  border-color: rgba(212, 175, 55, 0.6);
   background: rgba(212, 175, 55, 0.08);
 }
 .vip-picker-chip.is-active {
   border-color: var(--gold) !important;
-  background: linear-gradient(180deg, rgba(245, 230, 168, 0.18), rgba(212, 175, 55, 0.28)) !important;
+  background: linear-gradient(180deg, rgba(245, 230, 168, 0.22), rgba(212, 175, 55, 0.3)) !important;
   color: #fff8d8;
-  box-shadow: 0 0 0 2px rgba(212, 175, 55, 0.35) inset, 0 6px 20px rgba(212, 175, 55, 0.25);
+  box-shadow:
+    0 0 0 1.5px var(--gold) inset,
+    0 0 18px rgba(212, 175, 55, 0.45);
   transform: translateY(-1px);
 }
 .vip-picker-chip.is-sold-out {
-  opacity: 0.4;
-  text-decoration: line-through;
+  color: #6b6557;
+  border-color: rgba(210, 60, 60, 0.35);
   cursor: not-allowed;
 }
-.vip-picker-chip__sub {
-  font-size: 0.68rem;
-  font-weight: 500;
-  color: #c6bfae;
-}
-
-.vip-picker-summary {
-  margin: 0.95rem 0 0.55rem;
-  padding: 0.75rem 0.85rem;
-  border-radius: 14px;
-  background: rgba(212, 175, 55, 0.08);
-  border: 1px solid rgba(212, 175, 55, 0.22);
-}
-.vip-picker-price-row {
-  display: flex;
-  align-items: baseline;
-  gap: 0.6rem;
-}
-.vip-picker-price-orig {
-  font-size: 0.82rem;
-  color: #8a8479;
-  text-decoration: line-through;
-}
-.vip-picker-price-sale {
-  font-size: 1.25rem;
-  font-weight: 800;
-  color: var(--gold-light);
-}
-.vip-picker-stock {
-  margin: 0.3rem 0 0;
-  font-size: 0.78rem;
-  color: #b8b2a3;
-}
-.vip-picker-stock strong {
+.vip-picker-chip__badge {
+  position: absolute;
+  top: -7px;
+  right: -2px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: #c53030;
   color: #fff;
-  font-weight: 800;
-  margin: 0 0.15rem;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  line-height: 1.4;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  box-shadow: 0 2px 6px rgba(197, 48, 48, 0.45);
+  white-space: nowrap;
+  pointer-events: none;
 }
 
 .vip-picker-qty {
   display: flex;
   align-items: center;
-  gap: 0.65rem;
-  padding: 0.5rem 0.75rem;
-  border-radius: 14px;
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-}
-.vip-picker-qty__label {
-  flex: 1;
-  font-size: 0.82rem;
-  color: #a69f90;
-  font-weight: 700;
+  justify-content: center;
+  gap: 0.75rem;
+  padding: 0.6rem 0.75rem;
+  border-radius: 16px;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(212, 175, 55, 0.3);
+  margin: 0.4rem 0 0;
 }
 .vip-picker-qty__btn {
-  width: 40px;
-  height: 40px;
-  border-radius: 12px;
-  border: 1px solid rgba(212, 175, 55, 0.35);
-  background: rgba(0, 0, 0, 0.3);
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  border: 1px solid rgba(212, 175, 55, 0.55);
+  background: transparent;
   color: var(--gold-light);
-  font-size: 1.2rem;
+  font-size: 1.15rem;
   font-weight: 800;
   cursor: pointer;
   display: inline-flex;
@@ -3497,11 +3500,18 @@ body.is-agent-verified .vip-home2-feat__icon {
   transform: scale(0.94);
 }
 .vip-picker-qty__val {
-  min-width: 2ch;
-  text-align: center;
+  min-width: 56px;
+  height: 34px;
+  padding: 0 0.7rem;
+  border: 1px solid rgba(212, 175, 55, 0.4);
+  border-radius: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   font-weight: 800;
-  font-size: 1.05rem;
+  font-size: 1rem;
   color: #fff;
+  background: rgba(0, 0, 0, 0.25);
 }
 
 .vip-plus-one {

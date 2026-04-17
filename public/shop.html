@@ -624,22 +624,29 @@
             return (o.values && o.values[0]) || '';
           });
           var qty = 1;
-          var cover = (p.images && p.images[0]) || '';
 
           function buildHtml() {
-            var html = '';
-            if (cover) {
-              html +=
-                '<div class="vip-picker-cover"><img src="' +
-                escAttr(cover) +
-                '" alt="" /></div>';
-            }
-            html += '<div class="vip-picker-name">' + escHtml(p.name) + '</div>';
-            if (p.description) {
-              html += '<div class="vip-picker-desc">' + escHtml(p.description) + '</div>';
-            }
+            var v = ProductCatalog.findVariation(p, selected);
+            var left = v ? ProductCatalog.variationStockRemaining(p, selected, CartAPI.getCart()) : 0;
+            var priceTxt = v ? VIPStore.formatTWD(v.price) : '—';
+            var stockTxt = v ? String(left) : '—';
+
+            var html = '<div class="vip-picker-name">' + escHtml(p.name) + '</div>';
+
+            html +=
+              '<div class="vip-picker-cards">' +
+                '<div class="vip-picker-card">' +
+                  '<div class="vip-picker-card__label">售價</div>' +
+                  '<div class="vip-picker-card__val">' + priceTxt + '</div>' +
+                '</div>' +
+                '<div class="vip-picker-card">' +
+                  '<div class="vip-picker-card__label">庫存</div>' +
+                  '<div class="vip-picker-card__val">' + stockTxt + '</div>' +
+                '</div>' +
+              '</div>';
+
             opts.forEach(function (opt, oi) {
-              html += '<div class="vip-picker-group"><div class="vip-picker-label">' + escHtml(opt.name) + '</div><div class="vip-picker-chips" data-oi="' + oi + '">';
+              html += '<div class="vip-picker-group"><div class="vip-picker-chips" data-oi="' + oi + '">';
               (opt.values || []).forEach(function (val) {
                 var tryCombo = selected.slice();
                 tryCombo[oi] = val;
@@ -648,28 +655,18 @@
                 var active = selected[oi] === val ? ' is-active' : '';
                 html +=
                   '<button type="button" class="vip-picker-chip' + active + (soldOut ? ' is-sold-out' : '') + '" data-val="' + escAttr(val) + '"' + (soldOut ? ' disabled' : '') + '>' +
-                  escHtml(val) +
-                  (soldOut ? '<span class="vip-picker-chip__sub">售完</span>' : '') +
+                  '<span class="vip-picker-chip__txt">' + escHtml(val) + '</span>' +
+                  (soldOut ? '<span class="vip-picker-chip__badge">已售完</span>' : '') +
                   '</button>';
               });
               html += '</div></div>';
             });
 
-            var v = ProductCatalog.findVariation(p, selected);
-            var left = v ? ProductCatalog.variationStockRemaining(p, selected, CartAPI.getCart()) : 0;
-            var priceTxt = v ? VIPStore.formatTWD(v.price) : '—';
             html +=
-              '<div class="vip-picker-summary"><div class="vip-picker-price-row"><span class="vip-picker-price-orig">' +
-              VIPStore.formatTWD(p.original_price) +
-              '</span><span class="vip-picker-price-sale">' +
-              priceTxt +
-              '</span></div><p class="vip-picker-stock">剩餘 <strong>' + left + '</strong> 件</p></div>';
-
-            html +=
-              '<div class="vip-picker-qty"><span class="vip-picker-qty__label">數量</span>' +
-              '<button type="button" class="vip-picker-qty__btn" data-q="-">−</button>' +
+              '<div class="vip-picker-qty">' +
+              '<button type="button" class="vip-picker-qty__btn" data-q="-" aria-label="減少">−</button>' +
               '<span class="vip-picker-qty__val">' + qty + '</span>' +
-              '<button type="button" class="vip-picker-qty__btn" data-q="+">+</button>' +
+              '<button type="button" class="vip-picker-qty__btn" data-q="+" aria-label="增加">+</button>' +
               '</div>';
             return html;
           }
@@ -706,9 +703,7 @@
             var okBtn = Swal.getConfirmButton();
             if (okBtn) {
               okBtn.disabled = !v || left <= 0;
-              okBtn.textContent = v && left > 0
-                ? '加入購物車 · ' + VIPStore.formatTWD(v.price * qty)
-                : '無法加入';
+              okBtn.textContent = v && left > 0 ? '加入購物車' : '無法加入';
             }
           }
 
@@ -717,8 +712,9 @@
             html: '<div id="vip-picker-root"></div>',
             showCancelButton: true,
             showConfirmButton: true,
+            showCloseButton: false,
             confirmButtonText: '加入購物車',
-            cancelButtonText: '取消',
+            cancelButtonText: '✕',
             customClass: { popup: 'vip-picker-popup' },
             focusConfirm: false,
             didOpen: function () {
