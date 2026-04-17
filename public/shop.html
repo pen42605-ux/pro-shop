@@ -4,15 +4,49 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <script>
-      window.onload = function () {
-        var vip = localStorage.getItem('vip');
-        console.log('VIP:', vip);
-        if (vip !== 'true') {
-          window.location.href = './login.html';
+      (function () {
+        try {
+          if (localStorage.getItem('vip') !== 'true') {
+            location.replace('login.html');
+          }
+        } catch (e) {
+          location.replace('login.html');
         }
-      };
+      })();
     </script>
-    <script src="js/mall-mobile-guard.js"></script>
+    <script>
+      (function () {
+        function showErr(msg) {
+          try {
+            var box = document.getElementById('vip-debug-err');
+            if (!box) {
+              box = document.createElement('div');
+              box.id = 'vip-debug-err';
+              box.style.cssText =
+                'position:fixed;top:0;left:0;right:0;z-index:99999;background:#b00020;color:#fff;font:12px/1.4 ui-monospace,monospace;padding:10px 12px;white-space:pre-wrap;max-height:50vh;overflow:auto;box-shadow:0 4px 12px rgba(0,0,0,.4)';
+              if (document.body) document.body.appendChild(box);
+              else document.addEventListener('DOMContentLoaded', function () { document.body.appendChild(box); });
+            }
+            box.textContent = (box.textContent ? box.textContent + '\n' : '') + msg;
+          } catch (_) {}
+        }
+        window.addEventListener('error', function (e) {
+          var src = (e.filename || '') + ':' + (e.lineno || '') + ':' + (e.colno || '');
+          showErr('[error] ' + (e.message || e.error) + '  @ ' + src);
+        });
+        window.addEventListener('unhandledrejection', function (e) {
+          showErr('[promise] ' + (e.reason && e.reason.message ? e.reason.message : e.reason));
+        });
+        setTimeout(function () {
+          var l = document.getElementById('vip-page-loader');
+          if (l) {
+            l.setAttribute('aria-hidden', 'true');
+            l.classList.remove('is-visible');
+            document.body && document.body.classList.remove('vip-loading');
+          }
+        }, 3000);
+      })();
+    </script>
     <title>商城 · VIP</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" />
     <link rel="stylesheet" href="css/app.css" />
@@ -112,6 +146,30 @@
           return;
         }
 
+        try {
+          if (typeof VIPStore === 'undefined') throw new Error('VIPStore 未載入（storage.js 失敗）');
+          if (typeof VIPUX === 'undefined') throw new Error('VIPUX 未載入（ux.js 失敗）');
+          if (typeof ProductCatalog === 'undefined') throw new Error('ProductCatalog 未載入（products.js 失敗）');
+          if (typeof CartAPI === 'undefined') throw new Error('CartAPI 未載入（cart.js 失敗）');
+        } catch (depErr) {
+          var box = document.createElement('div');
+          box.style.cssText = 'position:fixed;inset:0;background:#111;color:#f33;padding:20px;font:13px/1.5 ui-monospace,monospace;z-index:99999;white-space:pre-wrap;overflow:auto';
+          box.textContent = '[shop init] ' + depErr.message;
+          document.body.appendChild(box);
+          return;
+        }
+
+        try { mainShopInit(); } catch (err) {
+          var l = document.getElementById('vip-page-loader');
+          if (l) { l.setAttribute('aria-hidden', 'true'); l.classList.remove('is-visible'); document.body.classList.remove('vip-loading'); }
+          var box2 = document.createElement('div');
+          box2.style.cssText = 'position:fixed;top:0;left:0;right:0;background:#b00020;color:#fff;padding:12px;font:12px/1.5 ui-monospace,monospace;z-index:99999;white-space:pre-wrap;max-height:60vh;overflow:auto';
+          box2.textContent = '[shop init error] ' + (err && err.stack ? err.stack : err && err.message ? err.message : err);
+          document.body.appendChild(box2);
+          return;
+        }
+
+        function mainShopInit() {
         VIPStore.bootstrapVipPortalSession();
         var agent = VIPStore.getAgent();
         if (!agent || !agent.user) {
@@ -596,6 +654,7 @@
           b.disabled = true;
           flyProductImageToCart(imgEl, cartEl, afterAdd);
         });
+        }
       })();
     </script>
   </body>
