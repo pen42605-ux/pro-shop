@@ -118,24 +118,45 @@
     return o;
   }
 
-  function seedFromMockIfEmpty() {
-    var list = VIPStore.getProducts();
-    if (list.length || !w.MockData || !MockData.PRODUCTS) return;
-    var seeded = MockData.PRODUCTS.map(function (p) {
+  var MOCK_SEED_V = 'flavors-v1';
+  var LEGACY_MOCK_IDS = { iq1: 1, iq2: 1, vp1: 1, vp2: 1, ac1: 1, ac2: 1 };
+
+  function buildSeededList() {
+    return MockData.PRODUCTS.map(function (p) {
+      var hasOpts = Array.isArray(p.options) && p.options.length > 0;
       return ensureProductShape({
         id: p.id,
         name: p.name,
-        description: '',
+        description: p.description || '',
         category: p.category,
         base_price: p.price,
         original_price: p.originalPrice,
         images: [p.image],
-        options: [],
-        variations: [{ combo: [], price: p.price, stock: p.stock }],
+        options: hasOpts ? p.options : [],
+        variations: Array.isArray(p.variations) && p.variations.length
+          ? p.variations
+          : [{ combo: [], price: p.price, stock: p.stock }],
         status: 'active',
       });
     });
-    VIPStore.saveProducts(seeded);
+  }
+
+  function seedFromMockIfEmpty() {
+    if (!w.MockData || !MockData.PRODUCTS) return;
+    var storedVer = null;
+    try { storedVer = localStorage.getItem('vip_mock_seed_v'); } catch (_) {}
+    var list = VIPStore.getProducts();
+    if (list.length && storedVer === MOCK_SEED_V) return;
+
+    var mockIds = {};
+    MockData.PRODUCTS.forEach(function (p) { mockIds[String(p.id)] = true; });
+    var keptCustom = list.filter(function (p) {
+      var id = String(p.id);
+      return !mockIds[id] && !LEGACY_MOCK_IDS[id];
+    });
+
+    VIPStore.saveProducts(keptCustom.concat(buildSeededList()));
+    try { localStorage.setItem('vip_mock_seed_v', MOCK_SEED_V); } catch (_) {}
   }
 
   function getActiveForShop() {

@@ -749,12 +749,7 @@
           var p = ProductCatalog.ensureProductShape(raw);
           if (!p || !raw) return;
           var card = b.closest('.product-card');
-
-          if (p.options && p.options.length) {
-            openProductPicker(p, b, card);
-          } else {
-            commitAddToCart(p, [], 1, b, card);
-          }
+          openProductPicker(p, b, card);
         });
         }
       })();
