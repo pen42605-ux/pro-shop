@@ -114,6 +114,19 @@
         </header>
         <div class="admin-toolbar">
           <button type="button" class="btn-gold btn-sm" id="btn-new">＋ 新增商品</button>
+          <button type="button" class="btn-outline btn-sm" id="btn-manage-cats">分類管理</button>
+        </div>
+        <div id="cat-manager" class="admin-card" hidden style="padding: 1rem 1.1rem; margin-bottom: 1rem">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:0.5rem;margin-bottom:0.5rem">
+            <h3 style="margin:0;font-size:0.95rem;color:#f5e6a8">分類管理</h3>
+            <button type="button" class="btn-outline btn-sm" id="btn-cat-close">收起</button>
+          </div>
+          <p class="page-sub" style="margin:0 0 0.7rem;font-size:0.78rem">新增、改名或刪除分類。改名時會一併把所屬商品的分類更新。</p>
+          <div style="display:flex;gap:0.4rem;margin-bottom:0.75rem;flex-wrap:wrap">
+            <input type="text" id="cat-new-input" class="input" placeholder="新分類名稱" style="flex:1;min-width:200px" />
+            <button type="button" class="btn-gold btn-sm" id="btn-cat-add">＋ 新增分類</button>
+          </div>
+          <div id="cat-list" style="display:flex;flex-direction:column;gap:0.4rem"></div>
         </div>
         <div class="admin-table-wrap">
           <table>
@@ -178,11 +191,17 @@
           </div>
 
           <div style="grid-column: 1 / -1">
-            <p style="margin: 0 0 0.5rem; font-size: 0.85rem; font-weight: 700; color: #f5e6a8">選項群組（例：口味、尺寸）</p>
-            <p class="page-sub" style="margin: 0 0 0.65rem; font-size: 0.75rem">每列：選項名稱 + 值（逗號分隔）。無選項則僅使用下方單一規格。</p>
+            <p style="margin: 0 0 0.5rem; font-size: 0.85rem; font-weight: 700; color: #f5e6a8">選項群組（例：口味、尺寸、顏色）</p>
+            <p class="page-sub" style="margin: 0 0 0.65rem; font-size: 0.75rem">每列：選項名稱 + 值（用逗號分隔）。點「產生規格組合」後於下方設定每個組合的售價／庫存。</p>
             <div id="pm-opt-rows"></div>
-            <button type="button" class="btn-outline btn-sm" type="button" id="pm-add-opt">＋ 新增選項群組</button>
-            <button type="button" class="btn-gold btn-sm" type="button" id="pm-gen-var" style="margin-left: 0.35rem">產生規格組合</button>
+            <div style="display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.35rem">
+              <button type="button" class="btn-outline btn-sm" id="pm-add-opt">＋ 新增選項群組</button>
+              <button type="button" class="btn-outline btn-sm" id="pm-preset-flavor">套用常用口味 (16)</button>
+              <button type="button" class="btn-outline btn-sm" id="pm-preset-flavor-short">常用口味 (短版 6)</button>
+              <button type="button" class="btn-outline btn-sm" id="pm-preset-color">套用顏色</button>
+              <button type="button" class="btn-outline btn-sm" id="pm-preset-size">套用尺寸</button>
+              <button type="button" class="btn-gold btn-sm" id="pm-gen-var" style="margin-left: auto">產生規格組合</button>
+            </div>
           </div>
 
           <div style="grid-column: 1 / -1">
@@ -259,15 +278,169 @@
           el.addEventListener('click', closeModal);
         });
 
+        var CAT_CUSTOM_KEY = 'vip_categories_custom';
+        function getCustomCats() {
+          try {
+            var raw = localStorage.getItem(CAT_CUSTOM_KEY);
+            var arr = raw ? JSON.parse(raw) : [];
+            return Array.isArray(arr) ? arr.map(String) : [];
+          } catch (e) { return []; }
+        }
+        function saveCustomCats(arr) {
+          try {
+            localStorage.setItem(CAT_CUSTOM_KEY, JSON.stringify(arr));
+            window.dispatchEvent(new CustomEvent('vip-storage-change', { detail: { key: CAT_CUSTOM_KEY } }));
+          } catch (e) {}
+        }
+        function getAllCats() {
+          var inUse = ProductCatalog.categoriesInUse();
+          var custom = getCustomCats();
+          var set = {}, out = [];
+          inUse.concat(custom).forEach(function (c) {
+            var s = String(c || '').trim();
+            if (!s || set[s]) return;
+            set[s] = true; out.push(s);
+          });
+          return out.sort();
+        }
+
         function fillCatList() {
           var dl = document.getElementById('pm-cat-list');
           dl.innerHTML = '';
-          ProductCatalog.categoriesInUse().forEach(function (c) {
+          getAllCats().forEach(function (c) {
             var o = document.createElement('option');
             o.value = c;
             dl.appendChild(o);
           });
         }
+
+        var catMgr = document.getElementById('cat-manager');
+        document.getElementById('btn-manage-cats').addEventListener('click', function () {
+          catMgr.hidden = !catMgr.hidden;
+          if (!catMgr.hidden) renderCatManager();
+        });
+        document.getElementById('btn-cat-close').addEventListener('click', function () {
+          catMgr.hidden = true;
+        });
+
+        function countProductsInCat(cat) {
+          return VIPStore.getProducts().filter(function (p) {
+            return String(p.category || '') === cat;
+          }).length;
+        }
+
+        function renderCatManager() {
+          var wrap = document.getElementById('cat-list');
+          wrap.innerHTML = '';
+          var cats = getAllCats();
+          if (!cats.length) {
+            wrap.innerHTML = '<p class="page-sub" style="margin:0;font-size:0.8rem">目前沒有任何分類。</p>';
+            return;
+          }
+          cats.forEach(function (c) {
+            var cnt = countProductsInCat(c);
+            var row = document.createElement('div');
+            row.style.cssText = 'display:flex;gap:0.4rem;align-items:center;padding:0.5rem 0.65rem;border:1px solid rgba(255,255,255,0.08);border-radius:10px;background:rgba(0,0,0,0.25);flex-wrap:wrap';
+            row.innerHTML =
+              '<strong style="flex:1;min-width:140px;color:#fff">' + esc(c) + '</strong>' +
+              '<span class="page-sub" style="font-size:0.72rem;margin:0">' + cnt + ' 項商品</span>' +
+              '<button type="button" class="btn-outline btn-sm" data-cat-act="rename" data-cat="' + escAttr(c) + '">改名</button>' +
+              '<button type="button" class="btn-outline btn-sm" data-cat-act="delete" data-cat="' + escAttr(c) + '" style="border-color:rgba(200,80,80,0.5);color:#ffcdd2">刪除</button>';
+            wrap.appendChild(row);
+          });
+          wrap.querySelectorAll('[data-cat-act]').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+              var act = btn.getAttribute('data-cat-act');
+              var c = btn.getAttribute('data-cat');
+              if (act === 'rename') catRename(c);
+              if (act === 'delete') catDelete(c);
+            });
+          });
+        }
+
+        function catRename(oldName) {
+          Swal.fire({
+            title: '改名分類',
+            input: 'text',
+            inputValue: oldName,
+            inputLabel: '新分類名稱',
+            showCancelButton: true,
+            confirmButtonText: '儲存',
+            cancelButtonText: '取消',
+            inputValidator: function (val) {
+              var v = String(val || '').trim();
+              if (!v) return '名稱不可空白';
+              if (v === oldName) return '名稱未變更';
+              return null;
+            },
+          }).then(function (r) {
+            if (!r.isConfirmed) return;
+            var nv = String(r.value || '').trim();
+            var list = VIPStore.getProducts();
+            var touched = 0;
+            list.forEach(function (p) {
+              if (String(p.category || '') === oldName) {
+                p.category = nv;
+                touched += 1;
+              }
+            });
+            VIPStore.saveProducts(list);
+            var cust = getCustomCats().map(function (c) { return c === oldName ? nv : c; });
+            saveCustomCats(cust);
+            Swal.fire({ icon: 'success', title: '已改名', text: '更新 ' + touched + ' 個商品', toast: true, position: 'top-end', timer: 1800, showConfirmButton: false });
+            renderCatManager();
+            renderTable();
+            fillCatList();
+          });
+        }
+
+        function catDelete(name) {
+          var cnt = countProductsInCat(name);
+          if (cnt > 0) {
+            Swal.fire({
+              icon: 'warning',
+              title: '無法刪除',
+              html: '此分類還有 <strong>' + cnt + '</strong> 個商品。<br>請先把商品改到其他分類再刪除。',
+            });
+            return;
+          }
+          Swal.fire({
+            title: '刪除分類？',
+            text: name,
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonText: '刪除',
+            cancelButtonText: '取消',
+          }).then(function (r) {
+            if (!r.isConfirmed) return;
+            var cust = getCustomCats().filter(function (c) { return c !== name; });
+            saveCustomCats(cust);
+            Swal.fire({ icon: 'success', title: '已刪除', toast: true, position: 'top-end', timer: 1400, showConfirmButton: false });
+            renderCatManager();
+            fillCatList();
+          });
+        }
+
+        document.getElementById('btn-cat-add').addEventListener('click', function () {
+          var inp = document.getElementById('cat-new-input');
+          var v = String(inp.value || '').trim();
+          if (!v) {
+            Swal.fire({ icon: 'warning', title: '請輸入分類名稱' });
+            return;
+          }
+          var all = getAllCats();
+          if (all.indexOf(v) !== -1) {
+            Swal.fire({ icon: 'info', title: '分類已存在', toast: true, position: 'top-end', timer: 1500, showConfirmButton: false });
+            return;
+          }
+          var cust = getCustomCats();
+          cust.push(v);
+          saveCustomCats(cust);
+          inp.value = '';
+          Swal.fire({ icon: 'success', title: '已新增分類', toast: true, position: 'top-end', timer: 1500, showConfirmButton: false });
+          renderCatManager();
+          fillCatList();
+        });
 
         function renderImgGrid() {
           var g = document.getElementById('pm-img-grid');
@@ -333,6 +506,42 @@
 
         document.getElementById('pm-add-opt').addEventListener('click', function () {
           addOptRow('', '');
+        });
+
+        var FLAVORS_16 = [
+          '芭樂', '葡萄', '西瓜', '哈密瓜', '北極冰', '可樂',
+          '綠豆沙', '鐵觀音', '薄荷', '百香果', '草莓', '藍莓',
+          '莓果', '蜜桃烏龍', '新荔枝', '茉莉花茶'
+        ];
+        var FLAVORS_6 = ['薄荷', '葡萄', '西瓜', '可樂', '草莓', '芭樂'];
+        var COLORS = ['曜金', '曜黑', '午夜藍'];
+        var SIZES = ['S', 'M', 'L'];
+
+        function upsertOptRow(name, values) {
+          var rows = document.querySelectorAll('#pm-opt-rows .admin-opt-row');
+          var found = null;
+          rows.forEach(function (row) {
+            var n = row.querySelector('.pm-opt-name').value.trim();
+            if (!found && n === name) found = row;
+          });
+          if (found) {
+            found.querySelector('.pm-opt-values').value = values.join(', ');
+          } else {
+            addOptRow(name, values.join(', '));
+          }
+        }
+
+        document.getElementById('pm-preset-flavor').addEventListener('click', function () {
+          upsertOptRow('口味', FLAVORS_16);
+        });
+        document.getElementById('pm-preset-flavor-short').addEventListener('click', function () {
+          upsertOptRow('口味', FLAVORS_6);
+        });
+        document.getElementById('pm-preset-color').addEventListener('click', function () {
+          upsertOptRow('顏色', COLORS);
+        });
+        document.getElementById('pm-preset-size').addEventListener('click', function () {
+          upsertOptRow('尺寸', SIZES);
         });
 
         function readOptionsFromForm() {
@@ -542,6 +751,7 @@
           fillCatList();
           document.getElementById('pm-form').reset();
           document.getElementById('pm-opt-rows').innerHTML = '';
+          addOptRow('口味', '');
           pmImages = [];
           renderImgGrid();
           document.getElementById('pm-id').value = '';

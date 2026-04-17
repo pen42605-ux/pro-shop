@@ -75,6 +75,7 @@
         <h1 class="page-title">精選商品</h1>
         <p class="page-sub">IQOS · Vape · 配件（資料為 mock，購物車鍵名 <code>cart</code>）。</p>
         <div id="recent-order-wrap" class="recent-order-wrap" hidden></div>
+        <nav id="cat-tabs" class="cat-tabs" aria-label="商品分類" hidden></nav>
         <div id="root">
           <div class="vip-shop-root-skeleton" aria-hidden="true">
             <div class="vip-skeleton vip-shop-root-skeleton__cat"></div>
@@ -319,14 +320,60 @@
           return staggerIdx++ * staggerStep + 's';
         }
 
+        var activeCategory = 'all';
+        try { activeCategory = localStorage.getItem('vip_active_cat') || 'all'; } catch (_) {}
+
+        var catTabsEl = document.getElementById('cat-tabs');
+
+        function renderCatTabs(cats) {
+          if (!catTabsEl) return;
+          if (!cats.length) { catTabsEl.hidden = true; catTabsEl.innerHTML = ''; return; }
+          catTabsEl.hidden = false;
+          var html = '<button type="button" class="cat-tab' + (activeCategory === 'all' ? ' is-active' : '') + '" data-cat="all">全部</button>';
+          cats.forEach(function (c) {
+            var active = activeCategory === c ? ' is-active' : '';
+            html += '<button type="button" class="cat-tab' + active + '" data-cat="' + escAttr(c) + '">' + escHtml(c) + '</button>';
+          });
+          catTabsEl.innerHTML = html;
+          catTabsEl.querySelectorAll('.cat-tab').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+              activeCategory = btn.getAttribute('data-cat') || 'all';
+              try { localStorage.setItem('vip_active_cat', activeCategory); } catch (_) {}
+              renderShop();
+              var shell = root.closest('.shell');
+              if (shell) {
+                try { shell.scrollIntoView({ behavior: 'smooth', block: 'start' }); } catch (_) {}
+              }
+            });
+          });
+        }
+
         function renderShop() {
           staggerIdx = 0;
           ProductCatalog.seedFromMockIfEmpty();
-          var catalog = ProductCatalog.getActiveForShop()
+          var all = ProductCatalog.getActiveForShop()
             .map(function (p) {
               return ProductCatalog.ensureProductShape(p);
             })
             .filter(Boolean);
+
+          var allCats = [];
+          var catSet = {};
+          all.forEach(function (p) {
+            var c = p.category || '未分類';
+            if (!catSet[c]) { catSet[c] = true; allCats.push(c); }
+          });
+          allCats.sort();
+
+          if (activeCategory !== 'all' && !catSet[activeCategory]) {
+            activeCategory = 'all';
+            try { localStorage.setItem('vip_active_cat', 'all'); } catch (_) {}
+          }
+          renderCatTabs(allCats);
+
+          var catalog = activeCategory === 'all'
+            ? all
+            : all.filter(function (p) { return (p.category || '未分類') === activeCategory; });
 
           var groups = {};
           catalog.forEach(function (p) {
@@ -388,8 +435,7 @@
                 ? '<p class="page-sub product-desc">' + escHtml(p.description) + '</p>'
                 : '';
 
-              var hasOpts = !!(p.options && p.options.length);
-              var btnLabel = hasOpts ? '選擇口味／規格' : '加入購物車';
+              var btnLabel = '加入購物車';
 
               reveal.innerHTML =
                 '<div class="p-carousel">' +
@@ -752,6 +798,12 @@
             cancelButtonText: '✕',
             customClass: { container: 'vip-picker-container', popup: 'vip-picker-popup' },
             focusConfirm: false,
+            heightAuto: false,
+            scrollbarPadding: false,
+            backdrop: 'rgba(0, 0, 0, 0.72)',
+            position: 'center',
+            allowOutsideClick: true,
+            allowEnterKey: false,
             didOpen: function () {
               var container = document.getElementById('vip-picker-root');
               if (container) refresh(container);
