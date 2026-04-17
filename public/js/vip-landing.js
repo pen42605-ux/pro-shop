@@ -61,10 +61,13 @@
   function initReveal() {
     var els = document.querySelectorAll('.is-vip-reveal');
     if (!els.length) return;
-    if (!('IntersectionObserver' in w)) {
+    function showAll() {
       els.forEach(function (x) {
         x.classList.add('is-vip-visible');
       });
+    }
+    if (!('IntersectionObserver' in w)) {
+      showAll();
       return;
     }
     var io = new IntersectionObserver(
@@ -81,13 +84,23 @@
     els.forEach(function (el) {
       io.observe(el);
     });
+    w.setTimeout(showAll, 1000);
   }
 
+  var _inited = false;
   function init() {
+    if (_inited) return;
+    _inited = true;
     initReveal();
     tickCountdown();
     setDeliveryRange();
   }
 
   w.VIPLanding = { init: init };
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
 })(window);
