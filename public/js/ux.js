@@ -275,6 +275,61 @@
     if (e.detail && e.detail.key === 'agent') initAgentContextBar();
   });
 
+  /**
+   * 從 srcEl（或 {x,y} 座標）位置彈出金色「+1」，飄向 #vip-cart-link 後消失。
+   * 同時觸發購物車按鈕的 bounce 動畫。
+   * @param {HTMLElement|{x:number,y:number}} from
+   * @param {string} [label] 預設 '+1'
+   */
+  function popPlusOneToCart(from, label) {
+    try {
+      var cart = document.getElementById('vip-cart-link');
+      var sx, sy;
+      if (from && typeof from.getBoundingClientRect === 'function') {
+        var r = from.getBoundingClientRect();
+        sx = r.left + r.width / 2;
+        sy = r.top + r.height / 2;
+      } else if (from && typeof from.x === 'number') {
+        sx = from.x;
+        sy = from.y;
+      } else {
+        sx = w.innerWidth / 2;
+        sy = w.innerHeight / 2;
+      }
+      var dx = 0, dy = -64;
+      if (cart) {
+        var cr = cart.getBoundingClientRect();
+        dx = cr.left + cr.width / 2 - sx;
+        dy = cr.top + cr.height / 2 - sy;
+      }
+      var el = document.createElement('div');
+      el.className = 'vip-plus-one';
+      el.textContent = label || '+1';
+      el.style.left = sx + 'px';
+      el.style.top = sy + 'px';
+      el.style.setProperty('--dx', dx + 'px');
+      el.style.setProperty('--dy', dy + 'px');
+      document.body.appendChild(el);
+      el.addEventListener('animationend', function () {
+        el.remove();
+      });
+      if (cart) {
+        cart.classList.remove('cart-icon-bounce');
+        void cart.offsetWidth;
+        cart.classList.add('cart-icon-bounce');
+        cart.addEventListener(
+          'animationend',
+          function () {
+            cart.classList.remove('cart-icon-bounce');
+          },
+          { once: true }
+        );
+      }
+    } catch (err) {
+      /* ignore */
+    }
+  }
+
   w.VIPUX = {
     showLoader: showLoader,
     hideLoader: hideLoader,
@@ -285,5 +340,6 @@
     syncReferralFromUrl: syncReferralFromUrl,
     getReferralSourceLabel: getReferralSourceLabel,
     initAgentContextBar: initAgentContextBar,
+    popPlusOneToCart: popPlusOneToCart,
   };
 })(window);

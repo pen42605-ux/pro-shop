@@ -152,8 +152,10 @@
           var id = e.target.getAttribute('data-d') || e.target.getAttribute('data-u') || e.target.getAttribute('data-r');
           if (!id) return;
           if (e.target.hasAttribute('data-d')) CartAPI.dec(id);
-          else if (e.target.hasAttribute('data-u')) CartAPI.inc(id);
-          else if (e.target.hasAttribute('data-r')) CartAPI.remove(id);
+          else if (e.target.hasAttribute('data-u')) {
+            CartAPI.inc(id);
+            try { VIPUX.popPlusOneToCart(e.target); } catch (_) {}
+          } else if (e.target.hasAttribute('data-r')) CartAPI.remove(id);
           render();
         });
 

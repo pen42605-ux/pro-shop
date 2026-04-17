@@ -379,30 +379,12 @@
                   ? '<button type="button" class="p-car-prev" aria-label="上一張">‹</button><button type="button" class="p-car-next" aria-label="下一張">›</button>'
                   : '';
 
-              var optsHtml = '';
-              if (p.options && p.options.length) {
-                p.options.forEach(function (opt, oi) {
-                  optsHtml +=
-                    '<div class="product-option-row"><label class="product-option-label">' +
-                    escHtml(opt.name) +
-                    '</label><select class="input product-opt" data-oi="' +
-                    oi +
-                    '">';
-                  (opt.values || []).forEach(function (v) {
-                    optsHtml +=
-                      '<option value="' +
-                      escAttr(v) +
-                      '">' +
-                      escHtml(v) +
-                      '</option>';
-                  });
-                  optsHtml += '</select></div>';
-                });
-              }
-
               var descHtml = p.description
                 ? '<p class="page-sub product-desc">' + escHtml(p.description) + '</p>'
                 : '';
+
+              var hasOpts = !!(p.options && p.options.length);
+              var btnLabel = hasOpts ? '選擇口味／規格' : '加入購物車';
 
               reveal.innerHTML =
                 '<div class="p-carousel">' +
@@ -415,14 +397,15 @@
                 escHtml(p.name) +
                 '</h2>' +
                 descHtml +
-                optsHtml +
                 '<div class="product-price-block"><div class="product-price-row"><span class="product-price product-price--orig">' +
                 VIPStore.formatTWD(p.original_price) +
                 '</span><span class="product-price product-price--sale">' +
                 '—' +
                 '</span></div><p class="product-stock">剩餘 <strong class="product-stock-val">0</strong> 件</p></div><button type="button" class="btn-gold btn-add-cart" style="width:100%" data-id="' +
                 escAttr(String(p.id)) +
-                '">加入購物車</button></div>';
+                '">' +
+                escHtml(btnLabel) +
+                '</button></div>';
 
               art.appendChild(reveal);
               var imgForCar = reveal.querySelector('.p-car-img');
@@ -459,33 +442,34 @@
               }
 
               art._shopUpdatePrice = function () {
-                var combo = [];
-                reveal.querySelectorAll('select.product-opt').forEach(function (sel) {
-                  combo.push(sel.value);
-                });
-                var v = ProductCatalog.findVariation(p, combo);
                 var saleEl = reveal.querySelector('.product-price--sale');
                 var origEl = reveal.querySelector('.product-price--orig');
                 var stEl = reveal.querySelector('.product-stock-val');
                 var btnAc = reveal.querySelector('.btn-add-cart');
-                if (!v) {
+                var vars = (p.variations || []).slice();
+                if (!vars.length) {
                   if (saleEl) saleEl.textContent = '—';
                   if (stEl) stEl.textContent = '0';
                   if (btnAc) btnAc.disabled = true;
                   return;
                 }
-                if (saleEl) saleEl.textContent = VIPStore.formatTWD(v.price);
-                if (origEl) origEl.textContent = VIPStore.formatTWD(p.original_price);
-                var left = ProductCatalog.variationStockRemaining(p, combo, CartAPI.getCart());
-                if (stEl) stEl.textContent = String(left);
-                if (btnAc) btnAc.disabled = left <= 0;
-              };
-
-              reveal.querySelectorAll('select.product-opt').forEach(function (sel) {
-                sel.addEventListener('change', function () {
-                  art._shopUpdatePrice();
+                var cart = CartAPI.getCart();
+                var totalLeft = 0;
+                var minPrice = Infinity;
+                vars.forEach(function (v) {
+                  var left = ProductCatalog.variationStockRemaining(p, v.combo || [], cart);
+                  totalLeft += Math.max(0, left);
+                  if (typeof v.price === 'number' && v.price < minPrice) minPrice = v.price;
                 });
-              });
+                if (!isFinite(minPrice)) minPrice = 0;
+                var hasMulti = (p.options && p.options.length);
+                if (saleEl) {
+                  saleEl.textContent = (hasMulti ? '從 ' : '') + VIPStore.formatTWD(minPrice) + (hasMulti ? ' 起' : '');
+                }
+                if (origEl) origEl.textContent = VIPStore.formatTWD(p.original_price);
+                if (stEl) stEl.textContent = String(totalLeft);
+                if (btnAc) btnAc.disabled = totalLeft <= 0;
+              };
               art._shopUpdatePrice();
 
               grid.appendChild(art);
@@ -553,7 +537,9 @@
           }
 
           if (!clone.animate) {
-            cleanup();
+            cleanup(
+            
+            );
             return;
           }
 
@@ -575,43 +561,18 @@
           anim.onfinish = cleanup;
         }
 
-        root.addEventListener('click', function (e) {
-          var b = e.target.closest('button.btn-add-cart');
-          if (!b || b.disabled) return;
-          var id = b.getAttribute('data-id');
-          var raw = ProductCatalog.getById(id);
-          var p = ProductCatalog.ensureProductShape(raw);
-          if (!p || !raw) return;
-
-          var card = b.closest('.product-card');
-          var reveal = card && card.querySelector('.product-card__reveal');
-          var combo = [];
-          if (reveal) {
-            reveal.querySelectorAll('select.product-opt').forEach(function (sel) {
-              combo.push(sel.value);
-            });
-          }
+        function commitAddToCart(p, combo, qty, b, card) {
           var v = ProductCatalog.findVariation(p, combo);
           if (!v) {
-            Swal.fire({
-              icon: 'warning',
-              title: '無法加入',
-              text: '請選擇有效規格組合。',
-              confirmButtonText: '好的',
-            });
+            Swal.fire({ icon: 'warning', title: '無法加入', text: '請選擇有效規格組合。', confirmButtonText: '好的' });
             return;
           }
-          if (ProductCatalog.variationStockRemaining(p, combo, CartAPI.getCart()) <= 0) {
-            Swal.fire({
-              icon: 'warning',
-              title: '庫存不足',
-              confirmButtonText: '好的',
-            });
+          var left = ProductCatalog.variationStockRemaining(p, combo, CartAPI.getCart());
+          qty = Math.max(1, Math.min(qty || 1, left));
+          if (left <= 0) {
+            Swal.fire({ icon: 'warning', title: '庫存不足', confirmButtonText: '好的' });
             return;
           }
-
-          var imgEl = card && card.querySelector('.p-car-img');
-          var cartEl = document.getElementById('vip-cart-link');
 
           function afterAdd() {
             CartAPI.addLine({
@@ -619,12 +580,13 @@
               product_id: p.id,
               name: ProductCatalog.displayProductName(p, combo),
               price: v.price,
-              qty: 1,
+              qty: qty,
               category: p.category,
               combo: combo,
               image: (p.images && p.images[0]) || '',
             });
             triggerCartIconBounce();
+            try { VIPUX.popPlusOneToCart(b, '+' + qty); } catch (_) {}
             Swal.fire({
               toast: true,
               position: 'top-end',
@@ -634,25 +596,169 @@
               html:
                 '<p class="vip-swal-add-cart-name">' +
                 escHtml(ProductCatalog.displayProductName(p, combo)) +
-                ' · ' +
-                VIPStore.formatTWD(v.price) +
+                ' ×' + qty + ' · ' +
+                VIPStore.formatTWD(v.price * qty) +
                 '</p><p class="vip-swal-add-cart-name" style="margin-top:0.35rem;font-size:0.76rem;font-weight:500;color:#7a756c">點右上角購物車可結帳</p>',
               showConfirmButton: false,
               timer: 2400,
               timerProgressBar: true,
               customClass: { popup: 'vip-swal-toast vip-swal-toast--add-cart' },
             });
-            b.disabled = false;
+            if (b) b.disabled = false;
             if (card && typeof card._shopUpdatePrice === 'function') card._shopUpdatePrice();
           }
 
+          var imgEl = card && card.querySelector('.p-car-img');
+          var cartEl = document.getElementById('vip-cart-link');
           if (!imgEl || !cartEl) {
             afterAdd();
             return;
           }
-
-          b.disabled = true;
+          if (b) b.disabled = true;
           flyProductImageToCart(imgEl, cartEl, afterAdd);
+        }
+
+        function openProductPicker(p, b, card) {
+          var opts = p.options || [];
+          var selected = opts.map(function (o) {
+            return (o.values && o.values[0]) || '';
+          });
+          var qty = 1;
+          var cover = (p.images && p.images[0]) || '';
+
+          function buildHtml() {
+            var html = '';
+            if (cover) {
+              html +=
+                '<div class="vip-picker-cover"><img src="' +
+                escAttr(cover) +
+                '" alt="" /></div>';
+            }
+            html += '<div class="vip-picker-name">' + escHtml(p.name) + '</div>';
+            if (p.description) {
+              html += '<div class="vip-picker-desc">' + escHtml(p.description) + '</div>';
+            }
+            opts.forEach(function (opt, oi) {
+              html += '<div class="vip-picker-group"><div class="vip-picker-label">' + escHtml(opt.name) + '</div><div class="vip-picker-chips" data-oi="' + oi + '">';
+              (opt.values || []).forEach(function (val) {
+                var tryCombo = selected.slice();
+                tryCombo[oi] = val;
+                var testLeft = ProductCatalog.variationStockRemaining(p, tryCombo, CartAPI.getCart());
+                var soldOut = testLeft <= 0;
+                var active = selected[oi] === val ? ' is-active' : '';
+                html +=
+                  '<button type="button" class="vip-picker-chip' + active + (soldOut ? ' is-sold-out' : '') + '" data-val="' + escAttr(val) + '"' + (soldOut ? ' disabled' : '') + '>' +
+                  escHtml(val) +
+                  (soldOut ? '<span class="vip-picker-chip__sub">售完</span>' : '') +
+                  '</button>';
+              });
+              html += '</div></div>';
+            });
+
+            var v = ProductCatalog.findVariation(p, selected);
+            var left = v ? ProductCatalog.variationStockRemaining(p, selected, CartAPI.getCart()) : 0;
+            var priceTxt = v ? VIPStore.formatTWD(v.price) : '—';
+            html +=
+              '<div class="vip-picker-summary"><div class="vip-picker-price-row"><span class="vip-picker-price-orig">' +
+              VIPStore.formatTWD(p.original_price) +
+              '</span><span class="vip-picker-price-sale">' +
+              priceTxt +
+              '</span></div><p class="vip-picker-stock">剩餘 <strong>' + left + '</strong> 件</p></div>';
+
+            html +=
+              '<div class="vip-picker-qty"><span class="vip-picker-qty__label">數量</span>' +
+              '<button type="button" class="vip-picker-qty__btn" data-q="-">−</button>' +
+              '<span class="vip-picker-qty__val">' + qty + '</span>' +
+              '<button type="button" class="vip-picker-qty__btn" data-q="+">+</button>' +
+              '</div>';
+            return html;
+          }
+
+          function bindHandlers(container) {
+            container.querySelectorAll('.vip-picker-chips').forEach(function (box) {
+              var oi = parseInt(box.getAttribute('data-oi') || '0', 10);
+              box.querySelectorAll('.vip-picker-chip').forEach(function (chip) {
+                chip.addEventListener('click', function () {
+                  if (chip.disabled) return;
+                  selected[oi] = chip.getAttribute('data-val') || '';
+                  var left = ProductCatalog.variationStockRemaining(p, selected, CartAPI.getCart());
+                  if (qty > left) qty = Math.max(1, left);
+                  refresh(container);
+                });
+              });
+            });
+            var qMinus = container.querySelector('[data-q="-"]');
+            var qPlus = container.querySelector('[data-q="+"]');
+            if (qMinus) qMinus.addEventListener('click', function () {
+              if (qty > 1) { qty -= 1; refresh(container); }
+            });
+            if (qPlus) qPlus.addEventListener('click', function () {
+              var left = ProductCatalog.variationStockRemaining(p, selected, CartAPI.getCart());
+              if (qty < Math.max(1, left)) { qty += 1; refresh(container); }
+            });
+          }
+
+          function refresh(container) {
+            container.innerHTML = buildHtml();
+            bindHandlers(container);
+            var v = ProductCatalog.findVariation(p, selected);
+            var left = v ? ProductCatalog.variationStockRemaining(p, selected, CartAPI.getCart()) : 0;
+            var okBtn = Swal.getConfirmButton();
+            if (okBtn) {
+              okBtn.disabled = !v || left <= 0;
+              okBtn.textContent = v && left > 0
+                ? '加入購物車 · ' + VIPStore.formatTWD(v.price * qty)
+                : '無法加入';
+            }
+          }
+
+          Swal.fire({
+            title: '',
+            html: '<div id="vip-picker-root"></div>',
+            showCancelButton: true,
+            showConfirmButton: true,
+            confirmButtonText: '加入購物車',
+            cancelButtonText: '取消',
+            customClass: { popup: 'vip-picker-popup' },
+            focusConfirm: false,
+            didOpen: function () {
+              var container = document.getElementById('vip-picker-root');
+              if (container) refresh(container);
+            },
+            preConfirm: function () {
+              var v = ProductCatalog.findVariation(p, selected);
+              if (!v) {
+                Swal.showValidationMessage('請選擇有效規格');
+                return false;
+              }
+              var left = ProductCatalog.variationStockRemaining(p, selected, CartAPI.getCart());
+              if (left <= 0) {
+                Swal.showValidationMessage('庫存不足');
+                return false;
+              }
+              return { combo: selected.slice(), qty: qty };
+            },
+          }).then(function (r) {
+            if (r && r.isConfirmed && r.value) {
+              commitAddToCart(p, r.value.combo, r.value.qty, b, card);
+            }
+          });
+        }
+
+        root.addEventListener('click', function (e) {
+          var b = e.target.closest('button.btn-add-cart');
+          if (!b || b.disabled) return;
+          var id = b.getAttribute('data-id');
+          var raw = ProductCatalog.getById(id);
+          var p = ProductCatalog.ensureProductShape(raw);
+          if (!p || !raw) return;
+          var card = b.closest('.product-card');
+
+          if (p.options && p.options.length) {
+            openProductPicker(p, b, card);
+          } else {
+            commitAddToCart(p, [], 1, b, card);
+          }
         });
         }
       })();
