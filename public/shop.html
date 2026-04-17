@@ -96,11 +96,45 @@
     <script src="js/ux.js"></script>
     <script>
       (function () {
-        var agent = VIPStore.getAgent();
-        if (!agent || !agent.user) {
-          location.replace('login.html');
+        'use strict';
+
+        if (localStorage.getItem('vip') !== 'true') {
+          location.replace('/login.html');
           return;
         }
+
+        var agent = VIPStore.getAgent();
+        if (!agent || !agent.user) {
+          var uid = 'vip_gold_session';
+          VIPStore.setAgent({
+            code: 'GOLD',
+            name: '金牌特約 · 北區',
+            user: {
+              id: uid,
+              displayName: 'VIP 會員',
+              loginAt: new Date().toISOString(),
+            },
+          });
+          var users = VIPStore.getUsers();
+          if (!users.some(function (u) {
+            return u.id === uid;
+          })) {
+            users.push({
+              id: uid,
+              displayName: 'VIP 會員',
+              agentCode: 'GOLD',
+              status: 'active',
+              createdAt: new Date().toISOString(),
+            });
+          } else {
+            users.forEach(function (u) {
+              if (u.id === uid) u.status = 'active';
+            });
+          }
+          VIPStore.saveUsers(users);
+          agent = VIPStore.getAgent();
+        }
+
         VIPUX.bootLoader();
         VIPUX.initCartBadge();
         VIPUX.initExitIntentPopup();
@@ -108,8 +142,9 @@
         document.getElementById('hi').textContent = agent.user.displayName;
 
         document.getElementById('out').addEventListener('click', function () {
-          VIPStore.setAgent({ code: agent.code, name: agent.name });
-          location.href = 'login.html';
+          localStorage.removeItem('vip');
+          VIPStore.clearAgent();
+          location.href = '/login.html';
         });
 
         var rec = VIPStore.getSessionUserRecord();
@@ -127,8 +162,9 @@
             location.reload();
           });
           document.getElementById('btn-gate-out').addEventListener('click', function () {
-            VIPStore.setAgent({ code: agent.code, name: agent.name });
-            location.href = 'login.html';
+            localStorage.removeItem('vip');
+            VIPStore.clearAgent();
+            location.href = '/login.html';
           });
           return;
         }
@@ -144,8 +180,9 @@
             location.reload();
           });
           document.getElementById('btn-gate-out').addEventListener('click', function () {
-            VIPStore.setAgent({ code: agent.code, name: agent.name });
-            location.href = 'login.html';
+            localStorage.removeItem('vip');
+            VIPStore.clearAgent();
+            location.href = '/login.html';
           });
 
           window.addEventListener('vip-storage-change', function (e) {

@@ -12,213 +12,111 @@
     <a class="skip" href="#main">主要內容</a>
     <header class="topbar">
       <div class="topbar-inner">
-        <a href="shop.html" class="logo">
+        <a href="/shop.html" class="logo">
           <span class="logo-mark" aria-hidden="true"></span>
           <span>VIP BOUTIQUE</span>
         </a>
-        <a class="btn-outline btn-sm" href="index.html" id="reverify">重新驗證</a>
+        <a class="btn-outline btn-sm" href="/index.html">代理頁</a>
       </div>
     </header>
     <main id="main" class="page">
       <div class="center vip-landing-inner">
         <header class="vip-hero is-vip-reveal">
-          <p class="vip-hero__badge">限會員可見價格</p>
-          <h1 class="vip-hero__title">會員專屬入口</h1>
-          <p class="vip-hero__sub">專屬通道已就緒，登入後即可選購與下單。</p>
-          <p class="vip-login-hero__agent" id="vip-bound-agent" hidden></p>
+          <p class="vip-hero__badge">限會員可見</p>
+          <h1 class="vip-hero__title">會員登入</h1>
+          <p class="vip-hero__sub">請輸入代理碼。示範：輸入 <strong>GOLD</strong> 即可進入商城（純前端，無後端）。</p>
         </header>
 
         <div class="card vip-glass-card is-vip-reveal">
-          <p class="page-sub" style="margin: 0 0 1rem; text-align: center; font-size: 0.84rem; line-height: 1.55">
-            核准為 <strong>active</strong> 後可進入商城。LINE 為前端模擬；<strong>信箱登入</strong> 會連到本機後端 <code>/auth</code>（需 PostgreSQL）。
-          </p>
-          <button type="button" class="btn-line-gold" id="line">使用 LINE 一鍵登入會員（立即購買）</button>
-          <p class="vip-landing-hint" style="margin-top: 0">專屬代理與推薦來源請見頁首橫幅。</p>
-        </div>
-
-        <div class="card vip-glass-card is-vip-reveal" style="margin-top: 1.25rem">
-          <p class="page-sub" style="margin: 0 0 1rem; text-align: center; font-size: 0.84rem; line-height: 1.55">
-            使用 <strong>Email + 密碼</strong>（與 <code>pro-shop</code> 後端相同）
-          </p>
-          <form id="form-email" novalidate>
+          <form id="form-login" novalidate>
             <div class="field">
-              <label for="vip-email">Email</label>
-              <input id="vip-email" class="input" type="email" autocomplete="email" required />
+              <label for="agent-code">代理碼</label>
+              <input
+                id="agent-code"
+                class="input"
+                type="text"
+                name="code"
+                autocomplete="one-time-code"
+                placeholder="例：GOLD"
+                required
+              />
             </div>
-            <div class="field">
-              <label for="vip-password">密碼</label>
-              <input id="vip-password" class="input" type="password" autocomplete="current-password" required />
-            </div>
-            <button type="submit" class="btn-gold" style="width: 100%">信箱登入</button>
+            <p class="page-sub" style="margin: 0 0 1rem; font-size: 0.8rem; line-height: 1.5">
+              登入成功後會寫入 <code>localStorage</code> 鍵名 <code>vip</code> 為 <code>true</code>。
+            </p>
+            <button type="submit" class="btn-gold" style="width: 100%">登入並進入商城</button>
           </form>
-          <p class="vip-landing-hint" style="margin-top: 0.75rem; text-align: center">
-            <a href="register.html">尚未註冊？建立帳號</a>
-          </p>
         </div>
-
-        <ul class="vip-features is-vip-reveal" aria-label="會員權益">
-          <li class="vip-feat">
-            <span class="vip-feat__icon" aria-hidden="true">⚡</span>
-            <span class="vip-feat__text">極速下單</span>
-          </li>
-          <li class="vip-feat">
-            <span class="vip-feat__icon" aria-hidden="true">📦</span>
-            <span class="vip-feat__text">快速出貨</span>
-          </li>
-          <li class="vip-feat">
-            <span class="vip-feat__icon" aria-hidden="true">💬</span>
-            <span class="vip-feat__text">專屬客服支援</span>
-          </li>
-        </ul>
-
-        <section class="vip-countdown is-vip-reveal" aria-labelledby="vip-countdown-title-login">
-          <h2 class="vip-countdown__title" id="vip-countdown-title-login">🔥 今日訂單截止倒數</h2>
-          <p class="vip-countdown__sub">錯過需等明日配送</p>
-          <div class="vip-countdown__digits" id="vip-countdown-digits-login" aria-live="polite">--:--:--</div>
-        </section>
-
-        <section class="vip-delivery is-vip-reveal" aria-labelledby="vip-delivery-title-login">
-          <p class="vip-delivery__label" id="vip-delivery-title-login">📦 預計配送時間</p>
-          <p class="vip-delivery__fast">最快明日送達</p>
-          <p class="vip-delivery__dates" id="vip-delivery-range-login">—</p>
-        </section>
 
         <nav class="footer-nav">
-          <a href="index.html">代理頁</a>
+          <a href="/index.html">返回代理驗證</a>
         </nav>
       </div>
     </main>
+
     <script src="js/storage.js"></script>
-    <script src="js/pro-api.js"></script>
-    <script src="js/mock-data.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.all.min.js"></script>
-    <script src="js/ux.js"></script>
-    <script src="js/vip-landing.js"></script>
     <script>
       (function () {
-        var agent = VIPStore.getAgent();
-        if (!agent || !agent.code) {
-          location.replace('index.html');
+        'use strict';
+
+        if (localStorage.getItem('vip') === 'true') {
+          location.replace('/shop.html');
           return;
         }
-        if (agent.user) {
-          location.replace('shop.html');
-          return;
-        }
-        VIPUX.initAgentContextBar();
 
-        var agentLine = document.getElementById('vip-bound-agent');
-        agentLine.textContent = '代理：' + agent.name;
-        agentLine.hidden = false;
+        document.getElementById('form-login').addEventListener('submit', function (e) {
+          e.preventDefault();
+          var raw = document.getElementById('agent-code').value;
+          var code = String(raw || '')
+            .trim()
+            .toUpperCase();
 
-        if (window.VIPLanding) VIPLanding.init();
+          if (code !== 'GOLD') {
+            Swal.fire({
+              icon: 'error',
+              title: '登入失敗',
+              text: '代理碼錯誤。示範請輸入：GOLD',
+            });
+            return;
+          }
 
-        document.getElementById('reverify').addEventListener('click', function () {
-          VIPStore.clearAgent();
-        });
+          localStorage.setItem('vip', 'true');
 
-        function applyBackendSession(data) {
-          VIPStore.setApiToken(data.token);
-          var uid = 'db_' + data.user.id;
-          var users = VIPStore.getUsers();
-          var exists = users.some(function (u) {
-            return u.id === uid;
+          var displayName = 'VIP 會員';
+          var uid = 'vip_gold_' + String(Date.now());
+          var agentName = '金牌特約 · 北區';
+
+          VIPStore.setAgent({
+            code: 'GOLD',
+            name: agentName,
+            user: {
+              id: uid,
+              displayName: displayName,
+              loginAt: new Date().toISOString(),
+            },
           });
-          if (!exists) {
+
+          var users = VIPStore.getUsers();
+          if (!users.some(function (u) {
+            return u.id === uid;
+          })) {
             users.push({
               id: uid,
-              displayName: data.user.email,
-              agentCode: agent.code,
+              displayName: displayName,
+              agentCode: 'GOLD',
               status: 'active',
-              createdAt: data.user.created_at || new Date().toISOString(),
+              createdAt: new Date().toISOString(),
             });
+            VIPStore.saveUsers(users);
           } else {
             users.forEach(function (u) {
               if (u.id === uid) u.status = 'active';
             });
+            VIPStore.saveUsers(users);
           }
-          VIPStore.saveUsers(users);
-          VIPStore.setAgent({
-            code: agent.code,
-            name: agent.name,
-            user: {
-              id: uid,
-              displayName: data.user.email,
-              loginAt: new Date().toISOString(),
-            },
-          });
-        }
 
-        document.getElementById('form-email').addEventListener('submit', function (e) {
-          e.preventDefault();
-          var email = document.getElementById('vip-email').value.trim();
-          var pw = document.getElementById('vip-password').value;
-          VIPUX.showLoader();
-          ProAPI.authLogin(email, pw)
-            .then(function (data) {
-              VIPUX.hideLoader();
-              applyBackendSession(data);
-              Swal.fire({
-                icon: 'success',
-                title: '登入成功',
-                text: data.user.email,
-                confirmButtonText: '進入商城',
-                customClass: { popup: 'vip-swal-popup' },
-              }).then(function () {
-                location.href = 'shop.html';
-              });
-            })
-            .catch(function (err) {
-              VIPUX.hideLoader();
-              Swal.fire({
-                icon: 'error',
-                title: '登入失敗',
-                text: err.message || '請確認已執行 npm start、DATABASE_URL 與帳號是否正確',
-              });
-            });
-        });
-
-        document.getElementById('line').addEventListener('click', function () {
-          VIPStore.clearApiToken();
-          VIPUX.showLoader();
-          window.setTimeout(function () {
-            var uid = 'usr_' + Math.random().toString(36).slice(2, 12);
-            var displayName = 'LINE 會員 ' + Math.floor(Math.random() * 900 + 100);
-            var users = VIPStore.getUsers();
-            if (
-              !users.some(function (u) {
-                return u.id === uid;
-              })
-            ) {
-              users.push({
-                id: uid,
-                displayName: displayName,
-                agentCode: agent.code,
-                status: 'pending',
-                createdAt: new Date().toISOString(),
-              });
-              VIPStore.saveUsers(users);
-            }
-            VIPStore.setAgent({
-              code: agent.code,
-              name: agent.name,
-              user: {
-                id: uid,
-                displayName: displayName,
-                loginAt: new Date().toISOString(),
-              },
-            });
-            VIPUX.hideLoader();
-            Swal.fire({
-              icon: 'success',
-              title: '登入成功',
-              text: '歡迎來到 VIP BOUTIQUE',
-              confirmButtonText: '進入商城',
-              customClass: { popup: 'vip-swal-popup' },
-            }).then(function () {
-              location.href = 'shop.html';
-            });
-          }, 420);
+          location.href = '/shop.html';
         });
       })();
     </script>
