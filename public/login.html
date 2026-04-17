@@ -3,20 +3,15 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <script src="js/mall-mobile-guard.js"></script>
     <title>會員登入 · VIP BOUTIQUE</title>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" />
     <link rel="stylesheet" href="css/app.css" />
   </head>
-  <body class="vip-landing">
+  <body class="vip-landing" style="min-height: 100vh">
     <a class="skip" href="#main">主要內容</a>
     <header class="topbar">
       <div class="topbar-inner">
-        <a href="/shop.html" class="logo">
-          <span class="logo-mark" aria-hidden="true"></span>
-          <span>VIP BOUTIQUE</span>
-        </a>
-        <a class="btn-outline btn-sm" href="/index.html">代理頁</a>
+        <a href="shop.html" class="logo"><span class="logo-mark" aria-hidden="true"></span><span>VIP BOUTIQUE</span></a>
+        <a class="btn-outline btn-sm" href="index.html">代理頁</a>
       </div>
     </header>
     <main id="main" class="page">
@@ -24,99 +19,51 @@
         <header class="vip-hero is-vip-reveal">
           <p class="vip-hero__badge">限會員可見</p>
           <h1 class="vip-hero__title">會員登入</h1>
-          <p class="vip-hero__sub">請輸入代理碼。示範：輸入 <strong>GOLD</strong> 即可進入商城（純前端，無後端）。</p>
+          <p class="vip-hero__sub">請輸入代理碼（須在系統代理清單內，示範：<strong>GOLD</strong>）</p>
         </header>
-
         <div class="card vip-glass-card is-vip-reveal">
           <form id="form-login" novalidate>
             <div class="field">
               <label for="agent-code">代理碼</label>
-              <input
-                id="agent-code"
-                class="input"
-                type="text"
-                name="code"
-                autocomplete="one-time-code"
-                placeholder="例：GOLD"
-                required
-              />
+              <input id="agent-code" class="input" type="text" autocomplete="off" placeholder="GOLD" required />
             </div>
-            <p class="page-sub" style="margin: 0 0 1rem; font-size: 0.8rem; line-height: 1.5">
-              登入成功後會寫入 <code>localStorage</code> 鍵名 <code>vip</code> 為 <code>true</code>。
-            </p>
-            <button type="submit" class="btn-gold" style="width: 100%">登入並進入商城</button>
+            <button type="submit" class="btn-gold" style="width: 100%; margin-top: 0.5rem">登入並進入商城</button>
           </form>
         </div>
-
-        <nav class="footer-nav">
-          <a href="/index.html">返回代理驗證</a>
-        </nav>
+        <nav class="footer-nav"><a href="index.html">返回代理驗證</a></nav>
       </div>
     </main>
-
     <script src="js/storage.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.all.min.js"></script>
     <script>
       (function () {
         'use strict';
 
-        if (localStorage.getItem('vip') === 'true') {
-          location.replace('/shop.html');
-          return;
+        console.log('[login] page load');
+
+        try {
+          if (localStorage.getItem('vip') === 'true') {
+            console.log('[login] already vip → shop.html');
+            VIPStore.bootstrapVipPortalSession();
+            location.replace('shop.html');
+            return;
+          }
+        } catch (e) {
+          console.error('[login] localStorage', e);
         }
 
         document.getElementById('form-login').addEventListener('submit', function (e) {
           e.preventDefault();
           var raw = document.getElementById('agent-code').value;
-          var code = String(raw || '')
-            .trim()
-            .toUpperCase();
+          console.log('[login] submit', raw);
 
-          if (code !== 'GOLD') {
-            Swal.fire({
-              icon: 'error',
-              title: '登入失敗',
-              text: '代理碼錯誤。示範請輸入：GOLD',
-            });
+          var result = VIPStore.completePortalLogin(raw);
+          if (!result.ok) {
+            alert(result.error || '登入失敗');
             return;
           }
 
-          localStorage.setItem('vip', 'true');
-
-          var displayName = 'VIP 會員';
-          var uid = 'vip_gold_' + String(Date.now());
-          var agentName = '金牌特約 · 北區';
-
-          VIPStore.setAgent({
-            code: 'GOLD',
-            name: agentName,
-            user: {
-              id: uid,
-              displayName: displayName,
-              loginAt: new Date().toISOString(),
-            },
-          });
-
-          var users = VIPStore.getUsers();
-          if (!users.some(function (u) {
-            return u.id === uid;
-          })) {
-            users.push({
-              id: uid,
-              displayName: displayName,
-              agentCode: 'GOLD',
-              status: 'active',
-              createdAt: new Date().toISOString(),
-            });
-            VIPStore.saveUsers(users);
-          } else {
-            users.forEach(function (u) {
-              if (u.id === uid) u.status = 'active';
-            });
-            VIPStore.saveUsers(users);
-          }
-
-          location.href = '/shop.html';
+          console.log('[login] ok → shop.html');
+          location.href = 'shop.html';
         });
       })();
     </script>

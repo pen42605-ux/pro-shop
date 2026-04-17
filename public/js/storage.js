@@ -513,6 +513,95 @@
   function clearAgent() {
     setRaw(KEYS.AGENT, null);
     clearApiToken();
+    try {
+      localStorage.removeItem('vip');
+      localStorage.removeItem('role');
+    } catch (e) {}
+  }
+
+  /** 與 login 頁代理碼一致：寫入 vip / role，並建立 active 會員 */
+  function completePortalLogin(rawCode) {
+    var resolved = resolveAgentForLogin(rawCode);
+    if (!resolved) {
+      return { ok: false, error: '代理碼錯誤或不在清單內' };
+    }
+    var uid = 'vip_portal_' + resolved.code;
+    try {
+      localStorage.setItem('vip', 'true');
+      localStorage.setItem('role', resolved.code.toLowerCase());
+    } catch (e) {
+      return { ok: false, error: '無法儲存登入狀態' };
+    }
+    setAgent({
+      code: resolved.code,
+      name: resolved.name,
+      user: {
+        id: uid,
+        displayName: 'VIP 會員',
+        loginAt: new Date().toISOString(),
+      },
+    });
+    var users = getUsers();
+    var ix = users.findIndex(function (u) {
+      return u.id === uid;
+    });
+    if (ix < 0) {
+      users.push({
+        id: uid,
+        displayName: 'VIP 會員',
+        agentCode: resolved.code,
+        status: 'active',
+        createdAt: new Date().toISOString(),
+      });
+    } else {
+      users[ix].status = 'active';
+      users[ix].agentCode = resolved.code;
+      users[ix].displayName = users[ix].displayName || 'VIP 會員';
+    }
+    saveUsers(users);
+    return { ok: true };
+  }
+
+  /** 刷新後若仅有 vip 無 agent，依 role 還原 session */
+  function bootstrapVipPortalSession() {
+    try {
+      if (localStorage.getItem('vip') !== 'true') return;
+    } catch (e) {
+      return;
+    }
+    var ag = getAgent();
+    if (ag && ag.user) return;
+    var role = localStorage.getItem('role');
+    var tryCode = role ? String(role).toUpperCase() : 'GOLD';
+    var resolved = resolveAgentForLogin(tryCode);
+    if (!resolved) resolved = resolveAgentForLogin('GOLD');
+    if (!resolved) return;
+    var uid = 'vip_portal_' + resolved.code;
+    setAgent({
+      code: resolved.code,
+      name: resolved.name,
+      user: {
+        id: uid,
+        displayName: 'VIP 會員',
+        loginAt: new Date().toISOString(),
+      },
+    });
+    var users = getUsers();
+    var ix = users.findIndex(function (u) {
+      return u.id === uid;
+    });
+    if (ix < 0) {
+      users.push({
+        id: uid,
+        displayName: 'VIP 會員',
+        agentCode: resolved.code,
+        status: 'active',
+        createdAt: new Date().toISOString(),
+      });
+    } else {
+      users[ix].status = 'active';
+    }
+    saveUsers(users);
   }
 
   /** @returns {{ id: string, displayName: string, agentCode: string, status: string, createdAt: string, phone?: string }[]} */
@@ -852,6 +941,16 @@
   }
 
   function requireApprovedCustomer() {
+    try {
+      if (localStorage.getItem('vip') !== 'true') {
+        location.replace('login.html');
+        return false;
+      }
+    } catch (e) {
+      location.replace('login.html');
+      return false;
+    }
+    bootstrapVipPortalSession();
     var ag = getAgent();
     if (!ag || !ag.user) {
       location.replace('login.html');
@@ -884,6 +983,8 @@
     getAgent: getAgent,
     setAgent: setAgent,
     clearAgent: clearAgent,
+    completePortalLogin: completePortalLogin,
+    bootstrapVipPortalSession: bootstrapVipPortalSession,
     getApiToken: getApiToken,
     setApiToken: setApiToken,
     clearApiToken: clearApiToken,
